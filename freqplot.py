@@ -1,0 +1,4 @@
+from scipy import signal
+
+taps = signal.firwin2(3, [0.0, 0.5, 1.0], [1.0, 1.0, 0.0])
+print(taps)
