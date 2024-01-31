@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import CCP.CCCMSim as CCCMSim
+import EIP.EIPSim as EIPSim
 
 import GetBlock
 from ClassVideoInfo import VideoInformation
@@ -32,3 +33,8 @@ if __name__ == "__main__":
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_(64,64)_64x64.png'), predicted_cb_block)
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_(64,64)_64x64.png'), predicted_cr_block)
   print(sad_cb, sad_cr)
+
+  predicted_block, coeffs, sad = EIPSim.simulate_eip(my_video, 0, dimensions, 6)
+  cv2.imwrite(replace_extension(file_path, '_y_EIP_(64,64)_64x64.png'), predicted_block)
+  print(coeffs)
+  print(sad)

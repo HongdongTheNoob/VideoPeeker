@@ -51,9 +51,6 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   template_mask[:, [0, -1]] = False
   template_mask[block_mask] = False
 
-  cv2.imwrite("bmask.png", block_mask.astype("uint8") * 255)
-  cv2.imwrite("tmask.png", template_mask.astype("uint8") * 255)
-
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
   C = luma_template[template_all_y, template_all_x].reshape(-1, 1)
