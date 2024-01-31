@@ -14,10 +14,20 @@ def replace_extension(file_path, new_extension):
 if __name__ == "__main__":
   file_path = "D:/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
   my_video = VideoInformation(file_path, 832, 480, 8)
-  dimensions = (0, 64, 64, 64)
+  dimensions = (64, 64, 64, 64)
 
-  # block, template = GetBlock.get_block(my_video, 0, dimensions, 'y', 12)
-  # cv2.imwrite(replace_extension(file_path, '_y_(64,64)_64x64.png'), block)
-  # cv2.imwrite(replace_extension(file_path, '_y_template_(64,64)_64x64_12.png'), template)
+  block, template = GetBlock.get_block(my_video, 0, dimensions, 'y', 12)
+  cv2.imwrite(replace_extension(file_path, '_y_(64,64)_64x64.png'), block)
+  cv2.imwrite(replace_extension(file_path, '_y_template_(64,64)_64x64_12.png'), template)
 
-  CCP.CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
+  block, template = GetBlock.get_block(my_video, 0, dimensions, 'cb', 12)
+  cv2.imwrite(replace_extension(file_path, '_cb_(64,64)_64x64.png'), block)
+  cv2.imwrite(replace_extension(file_path, '_cb_template_(64,64)_64x64_12.png'), template)
+
+  block, template = GetBlock.get_block(my_video, 0, dimensions, 'cr', 12)
+  cv2.imwrite(replace_extension(file_path, '_cr_(64,64)_64x64.png'), block)
+  cv2.imwrite(replace_extension(file_path, '_cr_template_(64,64)_64x64_12.png'), template)
+
+  predicted_cb_block, predicted_cr_block, x_cb, x_cr = CCP.CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
+  cv2.imwrite(replace_extension(file_path, '_cb_predicted_(64,64)_64x64.png'), predicted_cb_block)
+  cv2.imwrite(replace_extension(file_path, '_cr_predicted_(64,64)_64x64.png'), predicted_cr_block)
