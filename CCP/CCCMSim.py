@@ -13,6 +13,8 @@ def pad_top(image):
   new_row = image[0, :]
   return np.vstack((new_row, image))
 
+# Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
+# Output: predicted blocks, coefficients, SADs
 def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   x, y, w, h = dimensions
   sample_dimensions = (x, y, w + 2, h + 2)
@@ -91,4 +93,7 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   predicted_cb_block = cb_template[template_top_height:-1, template_left_width:-1]
   predicted_cr_block = cr_template[template_top_height:-1, template_left_width:-1]
 
-  return predicted_cb_block, predicted_cr_block, x_cb, x_cr
+  sad_cb = np.sum(np.abs(predicted_cb_block - cb_block))
+  sad_cr = np.sum(np.abs(predicted_cr_block - cr_block))
+
+  return predicted_cb_block, predicted_cr_block, x_cb, x_cr, sad_cb, sad_cr

@@ -1,7 +1,7 @@
 import os
 import cv2
 import numpy as np
-import CCP.CCCMSim
+import CCP.CCCMSim as CCCMSim
 
 import GetBlock
 from ClassVideoInfo import VideoInformation
@@ -28,6 +28,7 @@ if __name__ == "__main__":
   cv2.imwrite(replace_extension(file_path, '_cr_(64,64)_64x64.png'), block)
   cv2.imwrite(replace_extension(file_path, '_cr_template_(64,64)_64x64_12.png'), template)
 
-  predicted_cb_block, predicted_cr_block, x_cb, x_cr = CCP.CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
+  predicted_cb_block, predicted_cr_block, x_cb, x_cr, sad_cb, sad_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_(64,64)_64x64.png'), predicted_cb_block)
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_(64,64)_64x64.png'), predicted_cr_block)
+  print(sad_cb, sad_cr)
