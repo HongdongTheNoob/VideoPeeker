@@ -12,3 +12,4 @@ def mip_simulation(video, frame_number, dimensions, colour_component, mip_index)
 
   template_left_width = min(1, x)
   template_top_height = min(1, y)
+  
