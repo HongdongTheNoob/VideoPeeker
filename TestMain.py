@@ -3,6 +3,8 @@ import cv2
 import numpy as np
 import CCP.CCCMSim as CCCMSim
 import EIP.EIPSim as EIPSim
+# import MIP.MIPSim as MIPSim
+import BmsStatsScanner
 
 import GetBlock
 from ClassVideoInfo import VideoInformation
@@ -12,7 +14,7 @@ def replace_extension(file_path, new_extension):
     new_file_path = base_path + new_extension
     return new_file_path
 
-if __name__ == "__main__":
+def simulation_use_case():
   file_path = "D:/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
   my_video = VideoInformation(file_path, 832, 480, 8)
   dimensions = (320, 64, 64, 64)
@@ -39,3 +41,12 @@ if __name__ == "__main__":
   cv2.imwrite(replace_extension(file_path, '_y_EIP' + position_string + '.png'), predicted_block)
   print(coeffs)
   print(sad)
+
+
+if __name__ == "__main__":
+  # simulation_use_case()
+
+  file_path = "D:\Data\Bitstream\ECM11_LF0\ClassC\BasketballDrill\str-BasketballDrill-AI-22.vtmbmsstats"
+
+  BmsStatsScanner.bms_stats_scan(file_path)
+  

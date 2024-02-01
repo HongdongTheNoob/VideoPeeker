@@ -66,8 +66,8 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   samples_cr = cr_template[template_all_y, template_all_x].reshape(-1, 1)
 
   # regression
-  x_cb, _, _, _ = np.linalg.lstsq(samples, samples_cb, rcond = None)
-  x_cr, _, _, _ = np.linalg.lstsq(samples, samples_cr, rcond = None)
+  coeffs_cb, _, _, _ = np.linalg.lstsq(samples, samples_cb, rcond = None)
+  coeffs_cr, _, _, _ = np.linalg.lstsq(samples, samples_cr, rcond = None)
 
   # prediction
   luma_block_with_template = luma_template.copy()
@@ -82,8 +82,8 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
 
   samples = np.hstack((C, N, S, W, E, CC, B))
-  predicted_cb = np.dot(samples, x_cb).astype(video.data_type)
-  predicted_cr = np.dot(samples, x_cr).astype(video.data_type)
+  predicted_cb = np.dot(samples, coeffs_cb).astype(video.data_type)
+  predicted_cr = np.dot(samples, coeffs_cr).astype(video.data_type)
   cb_template[block_mask] = predicted_cb.flatten()
   cr_template[block_mask] = predicted_cr.flatten()
 
@@ -93,4 +93,4 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma):
   sad_cb = np.sum(np.abs(predicted_cb_block - cb_block))
   sad_cr = np.sum(np.abs(predicted_cr_block - cr_block))
 
-  return predicted_cb_block, predicted_cr_block, x_cb, x_cr, sad_cb, sad_cr
+  return predicted_cb_block, predicted_cr_block, coeffs_cb, coeffs_cr, sad_cb, sad_cr
