@@ -17,7 +17,7 @@ def replace_extension(file_path, new_extension):
 def simulation_use_case():
   file_path = "D:/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
   my_video = VideoInformation(file_path, 832, 480, 8)
-  dimensions = (320, 64, 64, 64)
+  dimensions = (64, 64, 64, 64)
   position_string = '_(' + str(dimensions[0]) + ',' + str(dimensions[1]) + ')_' + str(dimensions[2]) + 'x' + str(dimensions[3])
 
   block, template = GetBlock.get_block(my_video, 0, dimensions, 'y', 12)
@@ -32,21 +32,27 @@ def simulation_use_case():
   cv2.imwrite(replace_extension(file_path, '_cr' + position_string + '.png'), block)
   cv2.imwrite(replace_extension(file_path, '_cr_template' + position_string + '_12.png'), template)
 
-  predicted_cb_block, predicted_cr_block, x_cb, x_cr, sad_cb, sad_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb, x_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted' + position_string + '.png'), predicted_cb_block)
   cv2.imwrite(replace_extension(file_path, '_cr_predicted' + position_string + '.png'), predicted_cr_block)
-  print(sad_cb, sad_cr)
+  print("SADs: ", sad_cb, sad_cr)
+
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb, x_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6, glcccm=1)
+  cv2.imwrite(replace_extension(file_path, '_cb_predicted_glcccm' + position_string + '.png'), predicted_cb_block)
+  cv2.imwrite(replace_extension(file_path, '_cr_predicted_glcccm' + position_string + '.png'), predicted_cr_block)
+  print("SADs: ", sad_cb, sad_cr)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb0, x_cb1, x_cr0, x_cr1 = CCCMSim.simulate_mm_cccm(my_video, 0, dimensions, 6)
+  cv2.imwrite(replace_extension(file_path, '_cb_predicted_mmlm' + position_string + '.png'), predicted_cb_block)
+  cv2.imwrite(replace_extension(file_path, '_cr_predicted_mmlm' + position_string + '.png'), predicted_cr_block)
+  print("SADs: ", sad_cb, sad_cr)
 
   predicted_block, coeffs, sad = EIPSim.simulate_eip(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_y_EIP' + position_string + '.png'), predicted_block)
-  print(coeffs)
-  print(sad)
 
 
 if __name__ == "__main__":
-  # simulation_use_case()
+  simulation_use_case()
 
-  file_path = "D:\Data\Bitstream\ECM11_LF0\ClassC\BasketballDrill\str-BasketballDrill-AI-22.vtmbmsstats"
-
-  BmsStatsScanner.bms_stats_scan(file_path)
+  # file_path = "D:\Data\Bitstream\ECM11_LF0\ClassC\BasketballDrill\str-BasketballDrill-AI-22.vtmbmsstats"
+  # BmsStatsScanner.bms_stats_scan(file_path)
   
