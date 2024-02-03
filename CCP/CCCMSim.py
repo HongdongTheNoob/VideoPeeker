@@ -121,8 +121,8 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   predicted_cb_block = cb_template[template_top_height:-1, template_left_width:-1]
   predicted_cr_block = cr_template[template_top_height:-1, template_left_width:-1]
 
-  sad_cb = np.sum(np.abs(predicted_cb_block - cb_block))
-  sad_cr = np.sum(np.abs(predicted_cr_block - cr_block))
+  sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
+  sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
   return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs_cb, coeffs_cr
 
@@ -230,8 +230,8 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   predicted_cb_block = cb_template[template_top_height:-1, template_left_width:-1]
   predicted_cr_block = cr_template[template_top_height:-1, template_left_width:-1]
 
-  sad_cb = np.sum(np.abs(predicted_cb_block - cb_block))
-  sad_cr = np.sum(np.abs(predicted_cr_block - cr_block))
+  sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
+  sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
   return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs_cb0, coeffs_cb1, coeffs_cr0, coeffs_cr1
 
@@ -311,7 +311,7 @@ def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_l
   predicted_cb_block = cb_template[template_top_height:-1, template_left_width:-1]
   predicted_cr_block = cr_template[template_top_height:-1, template_left_width:-1]
 
-  sad_cb = np.sum(np.abs(predicted_cb_block - cb_block))
-  sad_cr = np.sum(np.abs(predicted_cr_block - cr_block))
+  sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
+  sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
   return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs_cb0, coeffs_cb1, coeffs_cr0, coeffs_cr1
