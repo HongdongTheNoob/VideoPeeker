@@ -1,5 +1,6 @@
 *.png
 *.bmp
+Tests/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
