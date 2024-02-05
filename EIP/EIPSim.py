@@ -48,7 +48,7 @@ def simulate_eip(video, frame_number, dimensions, template_lines):
   # prediction
   for r in range(template_top_height, template_top_height + h):
     for c in range(template_left_width, template_left_width + w):
-      neighbours = [].astype("float64")
+      neighbours = []
       for s in range(len(offset_y)):
         neighbour_y = max(r + offset_y[s], 0)
         neighbour_x = max(c + offset_x[s], 0)
@@ -100,7 +100,7 @@ def simulate_custom_eip(video, frame_number, dimensions, template_lines):
   # prediction
   for r in range(template_top_height, template_top_height + h):
     for c in range(template_left_width, template_left_width + w):
-      neighbours = [2 ** (video.bit_depth - 1)].astype("float64")
+      neighbours = [(2 ** (video.bit_depth - 1))]
       for s in range(len(offset_y)):
         neighbour_y = max(r + offset_y[s], 0)
         neighbour_x = max(c + offset_x[s], 0)
