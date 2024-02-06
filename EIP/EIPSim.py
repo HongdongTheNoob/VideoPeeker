@@ -86,11 +86,17 @@ def simulate_custom_eip(video, frame_number, dimensions, template_lines):
 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
-  samples = np.ones((len(template_all_y), 1)).astype("float64") * (2 ** (video.bit_depth - 1))
+  samples = np.zeros((len(template_all_y), 0)).astype("float64")
   for s in range(len(offset_y)):
     samples = np.hstack((samples, luma_template[template_all_y + offset_y[s], template_all_x + offset_x[s]].reshape(-1, 1).astype("float64")))
-  for s in range(5):
+  for s in range(3):
     samples = np.hstack((samples, np.square(luma_template[template_all_y + offset_y[s], template_all_x + offset_x[s]].reshape(-1, 1).astype("float64"))))
+
+  X, Y = np.meshgrid(range(luma_template.shape[1]), range(luma_template.shape[0]))
+  X = np.reshape(X, luma_template.shape)[template_all_y, template_all_x].reshape(-1, 1).astype("float64")
+  Y = np.reshape(Y, luma_template.shape)[template_all_y, template_all_x].reshape(-1, 1).astype("float64")
+  B = np.ones((len(template_all_y), 1)).astype("float64") * (2 ** (video.bit_depth - 1))
+  samples = np.hstack((samples, X, Y, B))
 
   samples_y = luma_template[template_all_y, template_all_x]
 
@@ -100,15 +106,18 @@ def simulate_custom_eip(video, frame_number, dimensions, template_lines):
   # prediction
   for r in range(template_top_height, template_top_height + h):
     for c in range(template_left_width, template_left_width + w):
-      neighbours = [(2 ** (video.bit_depth - 1))]
+      neighbours = []
       for s in range(len(offset_y)):
         neighbour_y = max(r + offset_y[s], 0)
         neighbour_x = max(c + offset_x[s], 0)
         neighbours.append(luma_template[neighbour_y, neighbour_x].astype("float64"))
-      for s in range(5):
+      for s in range(3):
         neighbour_y = max(r + offset_y[s], 0)
         neighbour_x = max(c + offset_x[s], 0)
         neighbours.append(luma_template[neighbour_y, neighbour_x].astype("float64") ** 2)
+      neighbours.append(c)
+      neighbours.append(r)
+      neighbours.append((2.0 ** (video.bit_depth - 1)))
       luma_template[r, c] = np.dot(neighbours, coeffs).astype(luma_template.dtype)
 
   predicted_block = luma_template[template_top_height:template_top_height+h, template_left_width:template_left_width+w]

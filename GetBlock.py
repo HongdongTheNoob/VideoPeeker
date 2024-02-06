@@ -11,6 +11,10 @@ def get_block(video, frame_number, dimensions, colour_component, template_lines_
   component_start = frame_start
   component_stride = video.luma_stride_in_bytes()
   template_lines = template_lines_in_luma
+
+  w = min(w, video.width - x)
+  h = min(h, video.height - y)
+
   if colour_component == 'cb':
     component_start = frame_start + video.luma_size_in_bytes()
     component_stride = component_stride // 2
@@ -60,6 +64,8 @@ def get_block(video, frame_number, dimensions, colour_component, template_lines_
 
 def get_downsampled_block(video, frame_number, dimensions, template_lines_in_luma):
   x, y, w, h = dimensions
+  w = min(w, video.width - x)
+  h = min(h, video.height - y)
   start_get_x = max(x - template_lines_in_luma, 0)
   start_get_y = max(y - template_lines_in_luma, 0)
   get_w = w + x - start_get_x

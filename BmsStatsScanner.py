@@ -18,26 +18,34 @@ class BlockStats:
       return True
     
     return self.block_dimensions == dimensions
+
+  def pixel_count(self):
+    return self.block_dimensions[2] * self.block_dimensions[3]
   
 class GlobalStatsContainer:
   def __init__(self):
-    self.chromaIntraModeCounter = defaultdict(int) 
+    self.luma_intra_mode_counter = defaultdict(lambda: [0, 0])
+    self.chroma_intra_mode_counter = defaultdict(lambda: [0, 0]) 
 
-def process_block_stats(global_container, block_stats):
+def get_luma_or_chroma_intra_mode(global_container, block_stats):
   for line in block_stats.lines:
-    # find chroma intra mode
-    model_filter_pos = line.find("Chroma_IntraMode=")
-    if model_filter_pos == -1:
-      continue
-    try:
-      chroma_intra_mode = int(line[model_filter_pos + len("Chroma_IntraMode="):])
-    except ValueError:
-      print(f"Invalid integer format after 'Chroma_IntraMode=' in line: {line}")
+    # find luma/chroma intra mode
+    luma_mode_pos = line.find("Luma_IntraMode=")
+    chroma_mode_pos = line.find("Chroma_IntraMode=")
+    if luma_mode_pos == -1 and chroma_mode_pos == -1:
       continue
 
-    global_container.chromaIntraModeCounter[chroma_intra_mode] += 1
+    if luma_mode_pos != -1:
+      luma_intra_mode = int(line[luma_mode_pos + len("Luma_IntraMode="):])
+      global_container.luma_intra_mode_counter[luma_intra_mode][0] += 1
+      global_container.luma_intra_mode_counter[luma_intra_mode][1] += block_stats.pixel_count()
 
-def bms_stats_scan(file_path):
+    if chroma_mode_pos != -1:
+      chroma_intra_mode = int(line[chroma_mode_pos + len("Chroma_IntraMode="):])
+      global_container.chroma_intra_mode_counter[chroma_intra_mode][0] += 1
+      global_container.chroma_intra_mode_counter[chroma_intra_mode][1] += block_stats.pixel_count()
+
+def scan_stats(file_path):
   with open(file_path, "r") as bms_stats_file:
     block_is_located = False
     current_block_stats = BlockStats()
@@ -67,13 +75,12 @@ def bms_stats_scan(file_path):
           current_block_stats.block_dimensions = block_dimensions
           current_block_stats.lines.append(line)
         else: # process this stats and re-initialise
-          process_block_stats(global_container, current_block_stats) 
+          get_luma_or_chroma_intra_mode(global_container, current_block_stats) 
           current_block_stats.clear()
           current_block_stats.block_dimensions = block_dimensions
           current_block_stats.lines.append(line)
 
     if len(current_block_stats.block_dimensions) > 0: # process remaining
-      process_block_stats(global_container, current_block_stats) 
+      get_luma_or_chroma_intra_mode(global_container, current_block_stats) 
 
-  for key, value in sorted(global_container.chromaIntraModeCounter.items()):
-    print("mode: ", key, " count: ", value)
+  return global_container
