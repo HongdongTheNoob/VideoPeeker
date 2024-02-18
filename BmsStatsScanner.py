@@ -124,6 +124,53 @@ def scan_stats(file_path, frame_range = []):
 
   return global_container
 
+def collect_blocks(file_path, target_string = "", frame_range = []):
+  all_blocks = []
+  current_frame = -1
+  current_dimensions = ()
+
+  with open(file_path, "r") as bms_stats_file:
+    for line in bms_stats_file:
+      line = line.rstrip()
+
+      if not line.startswith('BlockStat'): # ignore non-info lines
+        continue
+
+      if line.find(target_string) == -1:
+        continue
+
+      # find frame number
+      match = re.search(r"POC (\d+)", line)
+      if match is None:
+        continue 
+      frame_number = int(match.group(1))
+
+      if len(frame_range) > 0:
+        if frame_number not in frame_range:
+          continue
+
+      # find block position
+      match = re.search(r"\((\s*\d+),(\s*\d+)\)", line)
+      if match is None:
+        continue 
+      block_x, block_y = int(match.group(1)), int(match.group(2))
+      match = re.search(r"\[(\s*\d+)x(\s*\d+)\]", line)
+      if match is None:
+        continue 
+      block_width, block_height = int(match.group(1)), int(match.group(2))
+      dimensions = (block_x, block_y, block_width, block_height)
+
+      if block_width == 0 and block_height == 0:
+        continue
+      if current_frame == frame_number and current_dimensions == dimensions:
+        continue
+
+      all_blocks.append((frame_number, dimensions))
+      current_frame = frame_number
+      current_dimensions = dimensions
+
+  return all_blocks
+
 def find_stats(file_path, frame_number, location):
   block_is_located = False
   current_block_stats = BlockStats()

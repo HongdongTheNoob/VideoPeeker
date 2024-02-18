@@ -18,6 +18,8 @@ def pad_top(image):
 def simulate_eip(video, frame_number, dimensions, template_lines):
   x, y, w, h = dimensions
   luma_block, luma_template = GetBlock.get_block(video, frame_number, dimensions, 'y', template_lines)
+  h = luma_block.shape[0]
+  w = luma_block.shape[1]
   
   template_left_width = min(template_lines, x)
   template_top_height = min(template_lines, y)
@@ -67,6 +69,8 @@ def simulate_eip(video, frame_number, dimensions, template_lines):
 def simulate_custom_eip(video, frame_number, dimensions, template_lines):
   x, y, w, h = dimensions
   luma_block, luma_template = GetBlock.get_block(video, frame_number, dimensions, 'y', template_lines)
+  h = luma_block.shape[0]
+  w = luma_block.shape[1]
   
   template_left_width = min(template_lines, x)
   template_top_height = min(template_lines, y)
