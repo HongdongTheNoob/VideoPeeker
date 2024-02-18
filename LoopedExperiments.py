@@ -14,7 +14,7 @@ def replace_extension(file_path, new_extension):
     return new_file_path
 
 def simulation_loop():
-  file_path = "D:/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
+  file_path = "/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
   bms_file_path = "/Data/Bitstream/ECM11_LF0/ClassC/BasketballDrill/str-BasketballDrill-AI-22.vtmbmsstats"
   video_width = 832
   video_height = 480
