@@ -52,7 +52,7 @@ def get_cccm_blocks_and_templates(video, frame_number, dimensions, template_line
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
-def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0):
+def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0):
   x, y, w, h = dimensions
 
   blocks_and_templates = get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma)
@@ -85,8 +85,12 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   samples_cr = cr_template[template_all_y, template_all_x].reshape(-1, 1).astype("float64")
 
   # regression
-  coeffs_cb, _, _, _ = np.linalg.lstsq(samples, samples_cb, rcond = None)
-  coeffs_cr, _, _, _ = np.linalg.lstsq(samples, samples_cr, rcond = None)
+  if l2_regularisation == 0:
+    coeffs_cb, _, _, _ = np.linalg.lstsq(samples, samples_cb, rcond = None)
+    coeffs_cr, _, _, _ = np.linalg.lstsq(samples, samples_cr, rcond = None)
+  else:
+    coeffs_cb = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_cb
+    coeffs_cr = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_cr
 
   # prediction
   luma_block_with_template = luma_template.copy()
@@ -128,7 +132,7 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
-def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0):
+def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0):
   x, y, w, h = dimensions
 
   blocks_and_templates = get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma)
@@ -175,10 +179,16 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   samples_cr1 = samples_cr[index_model1]
 
   # regression
-  coeffs_cb0, _, _, _ = np.linalg.lstsq(samples0, samples_cb0, rcond = None)
-  coeffs_cb1, _, _, _ = np.linalg.lstsq(samples1, samples_cb1, rcond = None)
-  coeffs_cr0, _, _, _ = np.linalg.lstsq(samples0, samples_cr0, rcond = None)
-  coeffs_cr1, _, _, _ = np.linalg.lstsq(samples1, samples_cr1, rcond = None)
+  if l2_regularisation == 0:
+    coeffs_cb0, _, _, _ = np.linalg.lstsq(samples0, samples_cb0, rcond = None)
+    coeffs_cb1, _, _, _ = np.linalg.lstsq(samples1, samples_cb1, rcond = None)
+    coeffs_cr0, _, _, _ = np.linalg.lstsq(samples0, samples_cr0, rcond = None)
+    coeffs_cr1, _, _, _ = np.linalg.lstsq(samples1, samples_cr1, rcond = None)
+  else:
+    coeffs_cb0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * np.eye(samples0.shape[1])) @ samples0.T @ samples_cb0
+    coeffs_cb1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * np.eye(samples1.shape[1])) @ samples1.T @ samples_cb1
+    coeffs_cr0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * np.eye(samples0.shape[1])) @ samples0.T @ samples_cr0
+    coeffs_cr1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * np.eye(samples1.shape[1])) @ samples1.T @ samples_cr1
 
   # prediction
   luma_block_with_template = luma_template.copy()

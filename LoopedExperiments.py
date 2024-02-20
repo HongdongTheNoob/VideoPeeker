@@ -25,12 +25,11 @@ def simulation_loop():
   if not os.path.exists(output_folder):
     os.makedirs(output_folder)
 
-  block_width = 64
-  block_height = 64
-
   # Collect blocks
   # With regular grid
   # all_blocks = []
+  # block_width = 64
+  # block_height = 64
   # for frame in range(1):
   #   for y in list(range(0, video_height, block_height)):
   #     for x in list(range(0, video_width, block_width)):
@@ -38,7 +37,7 @@ def simulation_loop():
   #       all_blocks.append((frame, dimensions))
   
   # By grabbing from bms stats file
-  all_blocks = BmsStatsScanner.collect_blocks(bms_file_path, frame_range = range(1))
+  all_blocks = BmsStatsScanner.collect_blocks(bms_file_path, frame_range = range(1), target_string = "")
 
   # Loop through
   for block in all_blocks:
