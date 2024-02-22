@@ -55,6 +55,8 @@ video_file_names = {
          '/Data/xcy_test/ClassTGM/ChineseEditing_1920x1080_60_8bit_420.yuv']
 }
 
+video_decoded_file_names = {}
+
 def find_files_with_string(folder_path, search_string):
     found_files = []
     for root, dirs, files in os.walk(folder_path):
@@ -76,6 +78,19 @@ def find_stats_files(folder_path, video_sequence, qp):
 #   video_file_names[key] = []
 #   for seq in values:
 #     found = find_files_with_string(video_base_path, seq)
+#     if found:
+#       print(seq, found[0].replace('\\', '/'))
+#       video_file_names[key].append(found[0].replace('\\', '/'))
+#     else:
+#       print(seq)
+#       video_file_names[key].append("")
+# pprint.pprint(video_file_names)
+
+# get video decoded file names
+# for key, values in video_sequences.items():
+#   video_file_names[key] = []
+#   for seq in values:
+#     found = find_files_with_string(bms_file_base_path, seq)
 #     if found:
 #       print(seq, found[0].replace('\\', '/'))
 #       video_file_names[key].append(found[0].replace('\\', '/'))

@@ -109,7 +109,10 @@ def simulate_mmlm_looped():
       total_sad_mmlm = 0
       overall_sad_change_lbccp = 0
       overall_sad_change_l2 = 0
-      overall_sad_change_new = 0
+      overall_sad_change_soft = 0
+      overall_sad_gain_lbccp = 0
+      overall_sad_gain_l2 = 0
+      overall_sad_gain_soft = 0
 
       mmlm_test_log_file = open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".txt", "w")
       for block in all_blocks:
@@ -139,22 +142,28 @@ def simulate_mmlm_looped():
         sad_mmlm_l2_100 = sad_cb + sad_cr
         mmlm_test_log_file.write(" ".join(["SADs MM-CCCM-L2-100: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_l2_100 - sad_mmlm), "\n"]))
 
-        # predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_soft_classified_mm_cccm(my_video, 0, dimensions, 6)
-        # sad_new_mmlm = sad_cb + sad_cr
-        # mmlm_test_log_file.write(" ".join(["SADs New MM-CCCM: ", str(sad_cb), str(sad_cr), " change ", str(sad_new_mmlm - sad_mmlm), "\n"]))
+        predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_soft_classified_mm_cccm(my_video, 0, dimensions, 6)
+        sad_new_mmlm = sad_cb + sad_cr
+        mmlm_test_log_file.write(" ".join(["SADs Soft MM-CCCM: ", str(sad_cb), str(sad_cr), " change ", str(sad_new_mmlm - sad_mmlm), "\n"]))
 
         pixel_count += dimensions[2] * dimensions[3] // 4
         total_sad_mmlm += sad_mmlm
         overall_sad_change_lbccp += sad_mmlm_lbccp - sad_mmlm
         overall_sad_change_l2 += sad_mmlm_l2_100 - sad_mmlm
-        # overall_sad_change_new += sad_new_mmlm - sad_mmlm
+        overall_sad_change_soft += sad_new_mmlm - sad_mmlm
+        overall_sad_gain_lbccp += max(0, sad_mmlm - sad_mmlm_lbccp)
+        overall_sad_gain_l2 += max(0, sad_mmlm - sad_mmlm_l2_100)
+        overall_sad_gain_soft += max(0, sad_mmlm - sad_new_mmlm)
       
       print(sequence, qp)
       print("Pixel count: ", pixel_count)
       print("MMLM total SAD: ", total_sad_mmlm)
-      print("Overall SAD LBCCP: ", overall_sad_change_lbccp)
+      print("Overall SAD change LBCCP: ", overall_sad_change_lbccp)
       print("Overall SAD change L2 Regularisation: ", overall_sad_change_l2)
-      # print("Overall SAD change new: ", overall_sad_change_new)
+      print("Overall SAD change soft MMLM: ", overall_sad_change_soft)
+      print("Overall SAD gain LBCCP: ", overall_sad_gain_lbccp)
+      print("Overall SAD gain L2 Regularisation: ", overall_sad_gain_l2)
+      print("Overall SAD gain soft MMLM: ", overall_sad_gain_soft)
 
 
 def simulate_cccm_looped():
