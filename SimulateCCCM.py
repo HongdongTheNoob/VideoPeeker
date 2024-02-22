@@ -81,7 +81,7 @@ def simulation_use_case():
   print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
 def simulate_mmlm_looped():
-  video_class = "C"
+  video_class = "D"
   qps = ["22", "27", "32", "37"]
 
   for i in range(len(VideoDataset.video_sequences[video_class])):
