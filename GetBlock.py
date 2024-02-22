@@ -1,5 +1,5 @@
 import numpy as np
-from ClassVideoInfo import VideoInformation\
+from ClassVideoInfo import VideoInformation
 
 def apply_121_filter_and_select_odd(row):
     filtered_row = np.convolve(row, np.array([1, 2, 1]), mode='same')

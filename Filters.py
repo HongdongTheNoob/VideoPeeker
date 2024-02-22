@@ -28,8 +28,8 @@ def apply_filter(video, frame_number, dimensions, colour_component, block, kerne
   # fill block into context
   if colour_component != 'y':
     template_lines = template_lines // 2
-  x_start = min(template_lines, dimensions[0])
-  y_start = min(template_lines, dimensions[1])
+  x_start = min(template_lines, dimensions[0] if colour_component == 'y' else dimensions[0] // 2)
+  y_start = min(template_lines, dimensions[1] if colour_component == 'y' else dimensions[1] // 2)
   for row in range(y_start, y_start + block.shape[0]):
     context_area[row][x_start:x_start + block.shape[1]] = block[row - y_start][:]
 
@@ -38,7 +38,7 @@ def apply_filter(video, frame_number, dimensions, colour_component, block, kerne
     right_most_column = context_area[:, -1].reshape((-1, 1))
     context_area = np.column_stack((context_area, np.tile(right_most_column, (1, block.shape[1] + 2 * template_lines - context_area.shape[1]))))
   if context_area.shape[0] < block.shape[0] + 2 * template_lines:
-    bottom_most_row = context_area[-1, :].reshape((-1, 1))
+    bottom_most_row = context_area[-1, :].reshape((1, -1))
     context_area = np.row_stack((context_area, np.tile(bottom_most_row, (block.shape[0] + 2 * template_lines - context_area.shape[0], 1))))
 
   # filter

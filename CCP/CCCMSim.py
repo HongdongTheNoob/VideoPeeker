@@ -13,16 +13,44 @@ def pad_top(image):
   new_row = image[0, :]
   return np.vstack((new_row, image))
 
+def pad_right(image):
+  new_column = image[:, -1].reshape(-1, 1)
+  return np.hstack((image, new_column))
+
+def pad_bottom(image):
+  new_row = image[-1, :]
+  return np.vstack((image, new_row))
+
 def get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma):
   x, y, w, h = dimensions
+  # extend 1 line to the  right and the bottom because of CCCM sampling
   sample_dimensions = (x, y, w + 2, h + 2)
   template_lines_in_luma = (template_lines_in_chroma + 1) * 2
   luma_block, luma_template = GetBlock.get_downsampled_block(video, frame_number, sample_dimensions, template_lines_in_luma)
   cb_block, cb_template = GetBlock.get_block(video, frame_number, sample_dimensions, 'cb', template_lines_in_luma)
   cr_block, cr_template = GetBlock.get_block(video, frame_number, sample_dimensions, 'cr', template_lines_in_luma)
-  luma_block = luma_block[:-1, :-1]
-  cb_block = cb_block[:-1, :-1]
-  cr_block = cr_block[:-1, :-1]
+  # check if the block hits the right or the bottom of the image
+  if x + w >= video.width:
+    # extend template
+    luma_template = pad_right(luma_template)
+    cb_template = pad_right(cb_template)
+    cr_template = pad_right(cr_template)
+  else:
+    # shrink block
+    luma_block = luma_block[:, :-1]
+    cb_block = cb_block[:, :-1]
+    cr_block = cr_block[:, :-1]
+  if y + h >= video.height:
+    # extend template
+    luma_template = pad_bottom(luma_template)
+    cb_template = pad_bottom(cb_template)
+    cr_template = pad_bottom(cr_template)
+  else:
+    # shrink block
+    luma_block = luma_block[:-1, :]
+    cb_block = cb_block[:-1, :]
+    cr_block = cr_block[:-1, :]
+
   template_left_width = min(template_lines_in_chroma + 1, x // 2)
   template_top_height = min(template_lines_in_chroma + 1, y // 2)
 
@@ -134,7 +162,7 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, (coeffs_cb, coeffs_cr)
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
-# Output: predicted blocks, SADs, coefficients
+# Output: predicted blocks, SADs, coefficients, MADs
 # evaluate_on_template: also calculates MAD on template. Basically trying to compare training and validation/test residues.
 def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0, evaluate_on_template = False):
   x, y, w, h = dimensions
@@ -145,7 +173,7 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
   if len(template_all_y) == 0:
-    return None, None, 0, 0, [], [], [], []
+    return None, None, 0, 0, (), ()
 
   C = luma_template[template_all_y, template_all_x].reshape(-1, 1).astype("float64")
   N = luma_template[template_all_y-1, template_all_x].reshape(-1, 1).astype("float64")
