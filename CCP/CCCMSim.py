@@ -131,10 +131,11 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
   sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
-  return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs_cb, coeffs_cr
+  return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, (coeffs_cb, coeffs_cr)
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
+# evaluate_on_template: also calculates MAD on template. Basically trying to compare training and validation/test residues.
 def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0, evaluate_on_template = False):
   x, y, w, h = dimensions
 
