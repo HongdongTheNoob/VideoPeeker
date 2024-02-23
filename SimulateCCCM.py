@@ -93,16 +93,16 @@ def simulate_mmlm_looped():
     video_folder = os.path.dirname(file_path)
 
     for qp in qps:
-      bms_files = VideoDataset.find_stats_files(VideoDataset.bms_file_base_path, sequence, qp)
+      bms_files = VideoDataset.find_stats_files(os.path.join(VideoDataset.bms_file_base_path, 'Class' + video_class), sequence, qp)
 
       if not bms_files:
         continue
 
-      # all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(1), target_string = "Chroma_IntraMode=68")
-      # with open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".json", "w") as file:
-      #   json.dump(all_blocks, file)    
-      with open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".json", "r") as file:
-        all_blocks = json.load(file)    
+      all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(1), target_string = "Chroma_IntraMode=68")
+      with open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".json", "w") as file:
+        json.dump(all_blocks, file)    
+      # with open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".json", "r") as file:
+      #   all_blocks = json.load(file)    
 
       # Loop
       pixel_count = 0
