@@ -6,8 +6,12 @@ import EIP.EIPSim as EIPSim
 # import MIP.MIPSim as MIPSim
 import BmsStatsScanner
 
-import GetBlock
+import VideoDataset
 from ClassVideoInfo import VideoInformation
+
+import GetBlock
+import Interpolations
+import Filters
 
 def replace_extension(file_path, new_extension):
     base_path, old_extension = os.path.splitext(file_path)
@@ -32,44 +36,33 @@ def simulation_use_case():
   cv2.imwrite(replace_extension(file_path, '_cr' + position_string + '.png'), np.kron(block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_template' + position_string + '_12.png'), np.kron(template, np.ones((8, 8))))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb, x_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_cccm' + position_string + '.png'), np.kron(predicted_cb_block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_cccm' + position_string + '.png'), np.kron(predicted_cr_block, np.ones((8, 8))))
-  print("SADs CCCM: ", sad_cb, sad_cr)
-  print("Cb coeffs: ", x_cb.reshape(1, -1))
-  print("Cr coeffs: ", x_cr.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb, x_cr = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6, glcccm=1)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_cccm(my_video, 0, dimensions, 6, glcccm=1)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_glcccm' + position_string + '.png'), np.kron(predicted_cb_block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_glcccm' + position_string + '.png'), np.kron(predicted_cr_block, np.ones((8, 8))))
-  print("SADs GLCCCM: ", sad_cb, sad_cr)
-  print("Cb coeffs: ", x_cb.reshape(1, -1))
-  print("Cr coeffs: ", x_cr.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb0, x_cb1, x_cr0, x_cr1 = CCCMSim.simulate_mm_cccm(my_video, 0, dimensions, 6)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mads = CCCMSim.simulate_mm_cccm(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_mmlm' + position_string + '.png'), np.kron(predicted_cb_block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_mmlm' + position_string + '.png'), np.kron(predicted_cr_block, np.ones((8, 8))))
-  print("SADs MM-CCCM: ", sad_cb, sad_cr)
-  print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb0, x_cb1, x_cr0, x_cr1 = CCCMSim.simulate_mm_cccm(my_video, 0, dimensions, 6, glcccm=1)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mads = CCCMSim.simulate_mm_cccm(my_video, 0, dimensions, 6, glcccm=1)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_mm_glcccm' + position_string + '.png'), np.kron(predicted_cb_block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_mm_glcccm' + position_string + '.png'), np.kron(predicted_cr_block, np.ones((8, 8))))
-  print("SADs MM-GLCCCM: ", sad_cb, sad_cr)
-  print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, x_cb0, x_cb1, x_cr0, x_cr1 = CCCMSim.simulate_soft_classified_mm_cccm(my_video, 0, dimensions, 6)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_soft_classified_mm_cccm(my_video, 0, dimensions, 6)
   cv2.imwrite(replace_extension(file_path, '_cb_predicted_new_mmlm' + position_string + '.png'), np.kron(predicted_cb_block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_cr_predicted_new_mmlm' + position_string + '.png'), np.kron(predicted_cr_block, np.ones((8, 8))))
-  print("SADs New MM-CCCM: ", sad_cb, sad_cr)
-  print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
   # predicted_block, coeffs, sad = EIPSim.simulate_eip(my_video, 0, dimensions, 6)
   # cv2.imwrite(replace_extension(file_path, '_y_EIP' + position_string + '.png'), predicted_block)
 
+  subpel_dimensions = (64.125, 64.125, 64, 64)
+  position_string = '_(' + str(subpel_dimensions[0]) + ',' + str(subpel_dimensions[1]) + ')_' + str(subpel_dimensions[2]) + 'x' + str(subpel_dimensions[3])
+  subpel_block = Interpolations.get_block_subpixel(my_video, 0, subpel_dimensions, 'y', Interpolations.luma_filter_12)
+  cv2.imwrite(replace_extension(file_path, '_y' + position_string + '.png'), np.kron(subpel_block, np.ones((8, 8))))
 
 if __name__ == "__main__":
   simulation_use_case()

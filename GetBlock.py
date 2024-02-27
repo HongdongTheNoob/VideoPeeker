@@ -12,6 +12,12 @@ def get_block(video, frame_number, dimensions, colour_component, template_lines_
   component_stride = video.luma_stride_in_bytes()
   template_lines = template_lines_in_luma
 
+  if x < 0:
+    w += x
+    x = 0
+  if y < 0:
+    h += y
+    y = 0
   w = min(w, video.width - x)
   h = min(h, video.height - y)
 
