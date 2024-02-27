@@ -59,10 +59,16 @@ def simulation_use_case():
   # predicted_block, coeffs, sad = EIPSim.simulate_eip(my_video, 0, dimensions, 6)
   # cv2.imwrite(replace_extension(file_path, '_y_EIP' + position_string + '.png'), predicted_block)
 
-  subpel_dimensions = (64.125, 64.125, 64, 64)
-  position_string = '_(' + str(subpel_dimensions[0]) + ',' + str(subpel_dimensions[1]) + ')_' + str(subpel_dimensions[2]) + 'x' + str(subpel_dimensions[3])
-  subpel_block = Interpolations.get_block_subpixel(my_video, 0, subpel_dimensions, 'y', Interpolations.luma_filter_12)
-  cv2.imwrite(replace_extension(file_path, '_y' + position_string + '.png'), np.kron(subpel_block, np.ones((8, 8))))
+  for step in range(16):
+    subpel_dimensions = (64 + step/16.0, 64 + step/16.0, 64, 64)
+    position_string = '_(' + str(int(subpel_dimensions[0])) + '+' + str(step) + '%16, ' + str(int(subpel_dimensions[1])) + '+' + str(step) + '%16)_'
+    print(position_string)
+    dimension_string = position_string + str(subpel_dimensions[2]) + 'x' + str(subpel_dimensions[3])
+    subpel_block_y = Interpolations.get_block_subpixel(my_video, 0, subpel_dimensions, 'y', Interpolations.luma_filter_12)
+    subpel_block_cb = Interpolations.get_block_subpixel(my_video, 0, subpel_dimensions, 'cb', Interpolations.chroma_filter_6)
+    subpel_block_cr = Interpolations.get_block_subpixel(my_video, 0, subpel_dimensions, 'cr', Interpolations.chroma_filter_6)
+    subpel_block = np.row_stack((subpel_block_y, np.column_stack((subpel_block_cb, subpel_block_cr))))
+    cv2.imwrite(replace_extension(file_path, '_ycbcr' + dimension_string + '.png'), np.kron(subpel_block, np.ones((8, 8))))
 
 if __name__ == "__main__":
   simulation_use_case()
