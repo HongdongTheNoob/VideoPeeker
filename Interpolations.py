@@ -41,7 +41,7 @@ luma_filter_12 = np.array([
 ])
 
 
-chroma_filter_6 = [
+chroma_filter_6 = np.array([
     [0, 0, 256, 0, 0, 0],
     [1, -6, 256, 7, -2, 0],
     [2, -11, 253, 15, -4, 1],
@@ -74,9 +74,9 @@ chroma_filter_6 = [
     [1, -6, 23, 251, -16, 3],
     [1, -4, 15, 253, -11, 2],
     [0, -2, 7, 256, -6, 1],
-]
+])
 
-chroma_filter_4 = [
+chroma_filter_4 = np.array([
   [  0 * 4, 64 * 4,  0 * 4,  0 * 4 ],
   [ -1 * 4, 63 * 4,  2 * 4,  0 * 4 ],
   [ -2 * 4, 62 * 4,  4 * 4,  0 * 4 ],
@@ -109,7 +109,7 @@ chroma_filter_4 = [
   [ -1 * 4,  7 * 4, 60 * 4, -2 * 4 ],
   [  0 * 4,  4 * 4, 62 * 4, -2 * 4 ],
   [  0 * 4,  2 * 4, 63 * 4, -1 * 4 ],
-]
+])
 
 # directly input dimensions (x, y, w, h) with decimal numbers
 # decimal position will be rounded down to 1/16 pixel accuracy
@@ -127,22 +127,33 @@ def get_block_subpixel(video, frame_number, dimensions, colour_component, kernel
   expanded_block, _ = GetBlock.get_block(video, frame_number, expanded_dimensions, colour_component, 0)
 
   # boundary check and padding
-  if int(dimensions[0]) < expanded_lines: # left
-    left_most_column = expanded_block[:, 0].reshape((-1, 1))
-    expanded_block = np.column_stack((np.tile(left_most_column, (1, expanded_lines - int(dimensions[0]))), expanded_block))
-    print(expanded_block.shape)
-  if expanded_block.shape[1] < dimensions[2] + (kernel.shape[1] - 1): #right
-    right_most_column = expanded_block[:, -1].reshape((-1, 1))
-    expanded_block = np.column_stack((expanded_block, np.tile(right_most_column, (1, dimensions[2] + (kernel.shape[1] - 1) - expanded_block.shape[1]))))
-    print(expanded_block.shape)
-  if int(dimensions[1]) < expanded_lines: #top
-    top_most_row = expanded_block[0, :].reshape((1, -1))
-    expanded_block = np.row_stack((np.tile(top_most_row, (expanded_lines - int(dimensions[1]), 1)), expanded_block))
-    print(expanded_block.shape)
-  if expanded_block.shape[0] < dimensions[3] + (kernel.shape[1] - 1): #bottom
-    bottom_most_row = expanded_block[-1, :].reshape((1, -1))
-    expanded_block = np.row_stack((expanded_block, np.tile(bottom_most_row, (dimensions[3] + (kernel.shape[1] - 1) - expanded_block.shape[0], 1))))
-    print(expanded_block.shape)
+  if colour_component == 'y':
+    if int(dimensions[0]) < expanded_lines: # left
+      left_most_column = expanded_block[:, 0].reshape((-1, 1))
+      expanded_block = np.column_stack((np.tile(left_most_column, (1, expanded_lines - int(dimensions[0]))), expanded_block))
+    if expanded_block.shape[1] < dimensions[2] // 2 + (kernel.shape[1] - 1): # right
+      right_most_column = expanded_block[:, -1].reshape((-1, 1))
+      expanded_block = np.column_stack((expanded_block, np.tile(right_most_column, (1, dimensions[2] + (kernel.shape[1] - 1) - expanded_block.shape[1]))))
+    if int(dimensions[1]) < expanded_lines: #top
+      top_most_row = expanded_block[0, :].reshape((1, -1))
+      expanded_block = np.row_stack((np.tile(top_most_row, (expanded_lines - int(dimensions[1]), 1)), expanded_block))
+    if expanded_block.shape[0] < dimensions[3] + (kernel.shape[1] - 1): #bottom
+      bottom_most_row = expanded_block[-1, :].reshape((1, -1))
+      expanded_block = np.row_stack((expanded_block, np.tile(bottom_most_row, (dimensions[3] + (kernel.shape[1] - 1) - expanded_block.shape[0], 1))))
+  else:
+    if int(dimensions[0]) // 2 < expanded_lines // 2: # left
+      left_most_column = expanded_block[:, 0].reshape((-1, 1))
+      expanded_block = np.column_stack((np.tile(left_most_column, (1, expanded_lines // 2 - int(dimensions[0]) // 2)), expanded_block))
+    if expanded_block.shape[1] < dimensions[2] // 2 + (kernel.shape[1] - 1): # right
+      right_most_column = expanded_block[:, -1].reshape((-1, 1))
+      expanded_block = np.column_stack((expanded_block, np.tile(right_most_column, (1, dimensions[2] // 2 + (kernel.shape[1] - 1) - expanded_block.shape[1]))))
+    if int(dimensions[1]) // 2< expanded_lines // 2: #top
+      top_most_row = expanded_block[0, :].reshape((1, -1))
+      expanded_block = np.row_stack((np.tile(top_most_row, (expanded_lines // 2 - int(dimensions[1]) // 2, 1)), expanded_block))
+    if expanded_block.shape[0] < dimensions[3] // 2 + (kernel.shape[1] - 1): #bottom
+      bottom_most_row = expanded_block[-1, :].reshape((1, -1))
+      expanded_block = np.row_stack((expanded_block, np.tile(bottom_most_row, (dimensions[3] // 2+ (kernel.shape[1] - 1) - expanded_block.shape[0], 1))))
+
 
   if colour_component == 'y':
     y_fractional = int(dimensions[1] * 16) % 16
