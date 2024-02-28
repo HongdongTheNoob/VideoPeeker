@@ -73,28 +73,10 @@ def find_stats_files(folder_path, video_sequence, qp):
                 found_files.append(os.path.join(root, file_name))
     return found_files
 
-# # get video file names
-# for key, values in video_sequences.items():
-#   video_file_names[key] = []
-#   for seq in values:
-#     found = find_files_with_string(video_base_path, seq)
-#     if found:
-#       print(seq, found[0].replace('\\', '/'))
-#       video_file_names[key].append(found[0].replace('\\', '/'))
-#     else:
-#       print(seq)
-#       video_file_names[key].append("")
-# pprint.pprint(video_file_names)
-
-# get video decoded file names
-# for key, values in video_sequences.items():
-#   video_file_names[key] = []
-#   for seq in values:
-#     found = find_files_with_string(bms_file_base_path, seq)
-#     if found:
-#       print(seq, found[0].replace('\\', '/'))
-#       video_file_names[key].append(found[0].replace('\\', '/'))
-#     else:
-#       print(seq)
-#       video_file_names[key].append("")
-# pprint.pprint(video_file_names)
+def find_video_properties(video_class, sequence_name):
+  if sequence_name in video_sequences[video_class]:
+    index = video_sequences[video_class].index(sequence_name)
+    return video_file_names[video_class][index], video_width_height_bitdepth[video_class][index]
+  else:
+    return None, None
+  
