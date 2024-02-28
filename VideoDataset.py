@@ -2,7 +2,7 @@ import os
 import pprint
 
 video_base_path = "/Data/xcy_test"
-bms_file_base_path = "/Data/Bitstream/ECM11"
+bms_file_base_path = "/Data/Bitstream/ECM12"
 
 video_sequences = {
   "A1": ["Tango2", "FoodMarket4", "Campfire"],
