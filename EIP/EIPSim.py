@@ -15,7 +15,7 @@ def pad_top(image):
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, coefficients, SADs
-def simulate_eip(video, frame_number, dimensions, template_lines):
+def simulate_eip(video, frame_number, dimensions, template_lines, l2_regularisation = 0):
   x, y, w, h = dimensions
   luma_block, luma_template = GetBlock.get_block(video, frame_number, dimensions, 'y', template_lines)
   h = luma_block.shape[0]
@@ -39,13 +39,19 @@ def simulate_eip(video, frame_number, dimensions, template_lines):
 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
+  invalid_samples = np.where((template_all_y < 3) & (template_all_x < 3))
+  template_all_y = np.delete(template_all_y, invalid_samples)
+  template_all_x = np.delete(template_all_x, invalid_samples)
   samples = np.zeros((len(template_all_y), 0)).astype("float64")
   for s in range(len(offset_y)):
     samples = np.hstack((samples, luma_template[template_all_y + offset_y[s], template_all_x + offset_x[s]].reshape(-1, 1).astype("float64")))
   samples_y = luma_template[template_all_y, template_all_x].astype("float64")
 
   # regression
-  coeffs, _, _, _ = np.linalg.lstsq(samples, samples_y, rcond = None)
+  if l2_regularisation == 0:
+    coeffs, _, _, _ = np.linalg.lstsq(samples, samples_y, rcond = None)
+  else:
+    coeffs = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_y
 
   # prediction
   for r in range(template_top_height, template_top_height + h):
@@ -61,12 +67,12 @@ def simulate_eip(video, frame_number, dimensions, template_lines):
 
   sad = np.sum(np.abs(predicted_block.astype("int32") - luma_block))
 
-  return predicted_block, coeffs, sad
+  return predicted_block, sad, coeffs
 
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, coefficients, SADs
-def simulate_custom_eip(video, frame_number, dimensions, template_lines):
+def simulate_alternative_eip(video, frame_number, dimensions, template_lines):
   x, y, w, h = dimensions
   luma_block, luma_template = GetBlock.get_block(video, frame_number, dimensions, 'y', template_lines)
   h = luma_block.shape[0]
@@ -90,6 +96,9 @@ def simulate_custom_eip(video, frame_number, dimensions, template_lines):
 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
+  invalid_samples = np.where((template_all_y < 3) & (template_all_x < 3))
+  template_all_y = np.delete(template_all_y, invalid_samples)
+  template_all_x = np.delete(template_all_x, invalid_samples)
   samples = np.zeros((len(template_all_y), 0)).astype("float64")
   for s in range(len(offset_y)):
     samples = np.hstack((samples, luma_template[template_all_y + offset_y[s], template_all_x + offset_x[s]].reshape(-1, 1).astype("float64")))
@@ -128,4 +137,4 @@ def simulate_custom_eip(video, frame_number, dimensions, template_lines):
 
   sad = np.sum(np.abs(predicted_block.astype("int32") - luma_block))
 
-  return predicted_block, coeffs, sad
+  return predicted_block, sad, coeffs

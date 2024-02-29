@@ -2,7 +2,7 @@ import numpy as np
 import GetBlock
 from scipy.signal import convolve2d
 
-luma_filter_4x4 = np.array([
+luma_filter_7 = np.array([
   [  0, 0,   0, 64 * 4,  0,   0,  0],
   [  0, 1 * 4,  -3 * 4, 63 * 4,  4 * 4,  -2 * 4,  1 * 4],
   [  0, 1 * 4,  -5 * 4, 62 * 4,  8 * 4,  -3 * 4,  1 * 4],
