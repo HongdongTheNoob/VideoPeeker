@@ -51,7 +51,7 @@ def simulate_eip(video, frame_number, dimensions, template_lines, l2_regularisat
   if l2_regularisation == 0:
     coeffs, _, _, _ = np.linalg.lstsq(samples, samples_y, rcond = None)
   else:
-    coeffs = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_y
+    coeffs = np.linalg.inv(samples.T @ samples + l2_regularisation * samples.shape[1] * np.eye(samples.shape[1])) @ samples.T @ samples_y
 
   # prediction
   for r in range(template_top_height, template_top_height + h):

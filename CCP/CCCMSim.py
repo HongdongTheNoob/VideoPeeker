@@ -220,10 +220,10 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
     coeffs_cr0, _, _, _ = np.linalg.lstsq(samples0, samples_cr0, rcond = None)
     coeffs_cr1, _, _, _ = np.linalg.lstsq(samples1, samples_cr1, rcond = None)
   else:
-    coeffs_cb0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * np.eye(samples0.shape[1])) @ samples0.T @ samples_cb0
-    coeffs_cb1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * np.eye(samples1.shape[1])) @ samples1.T @ samples_cb1
-    coeffs_cr0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * np.eye(samples0.shape[1])) @ samples0.T @ samples_cr0
-    coeffs_cr1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * np.eye(samples1.shape[1])) @ samples1.T @ samples_cr1
+    coeffs_cb0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * samples0.shape[1] * np.eye(samples0.shape[1])) @ samples0.T @ samples_cb0
+    coeffs_cb1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * samples1.shape[1] * np.eye(samples1.shape[1])) @ samples1.T @ samples_cb1
+    coeffs_cr0 = np.linalg.inv(samples0.T @ samples0 + l2_regularisation * samples0.shape[1] * np.eye(samples0.shape[1])) @ samples0.T @ samples_cr0
+    coeffs_cr1 = np.linalg.inv(samples1.T @ samples1 + l2_regularisation * samples1.shape[1] * np.eye(samples1.shape[1])) @ samples1.T @ samples_cr1
 
   mad_cb_template = 0.0
   mad_cr_template = 0.0
@@ -297,7 +297,7 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
-def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma):
+def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, soft_classification_when_apply = False):
   x, y, w, h = dimensions
 
   blocks_and_templates = get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma)
@@ -353,7 +353,11 @@ def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_l
   CC = np.square(C)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
 
-  weight1 = (C - template_luma_model1_lowerbound) / (template_luma_model0_upperbound - template_luma_model1_lowerbound)
+  if soft_classification_when_apply:
+    weight1 = (C - template_luma_model1_lowerbound) / (template_luma_model0_upperbound - template_luma_model1_lowerbound)
+  else:
+    weight1 = (C > template_luma_average).astype(int)
+
   weight1[weight1 < 0] = 0
   weight1[weight1 > 1] = 1
   weight0 = 1 - weight1

@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import json
+import csv
 import EIP.EIPSim as EIPSim
 import VideoDataset
 import BmsStatsScanner
@@ -37,14 +38,17 @@ def simulation_use_case():
   print("Sad: ", sad)
 
 def simulate_eip_looped():
-  video_class = "D"
+  video_class = "C"
   qps = ["22"]
 
   test_l2_regularisation = True
-  l2_lambdas = [32, 64, 128, 256, 512]
+  l2_lambdas = [8, 16, 32, 64, 128, 256, 512]
   test_alternative_eip = True
 
-  load_block_stats = False
+  load_block_stats = True
+
+  eip_test_log_csv = open("./Tests/EIP_Sim/EIP_stats_class" + video_class + ".csv", mode = 'w', newline = '')
+  eip_test_log_csv_writer = csv.writer(eip_test_log_csv)
 
   for i in range(len(VideoDataset.video_sequences[video_class])):
     sequence = VideoDataset.video_sequences[video_class][i]
@@ -120,6 +124,14 @@ def simulate_eip_looped():
       if test_l2_regularisation:
         for i in range(len(l2_lambdas)):
           print("Overall SAD gain L2 lambda =", str(l2_lambdas[i]), ": ", overall_sad_gain_l2[i])
+
+      eip_test_log_csv_writer.writerow([sequence, qp])
+      eip_test_log_csv_writer.writerow(["Method", "SAD change", "SAD change percentage", "SAD gain", "SAD gain percentage"])
+      if test_alternative_eip:
+        eip_test_log_csv_writer.writerow(["EIP Alternative: ", str(overall_sad_change_alternative), str(overall_sad_change_alternative/total_sad_eip), str(overall_sad_gain_alternative), str(overall_sad_gain_alternative/total_sad_eip)])
+      if test_l2_regularisation:
+        for i in range(len(l2_lambdas)):
+          eip_test_log_csv_writer.writerow([f"L2 lambda ={l2_lambdas[i]}", str(overall_sad_change_l2[i]), str(overall_sad_change_l2[i]/total_sad_eip), str(overall_sad_gain_l2[i]), str(overall_sad_gain_l2[i]/total_sad_eip)])
 
 if __name__ == "__main__":
   # simulation_use_case()

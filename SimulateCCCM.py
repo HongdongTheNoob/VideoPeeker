@@ -2,6 +2,7 @@ import os
 import cv2
 import numpy as np
 import json
+import csv
 import CCP.CCCMSim as CCCMSim
 import VideoDataset
 import BmsStatsScanner
@@ -81,15 +82,18 @@ def simulation_use_case():
   print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
 def simulate_mmlm_looped():
-  video_class = "E"
+  video_class = "C"
   qps = ["22"]
 
   test_lbccp = True
   test_l2_regularisation = True
-  l2_lambdas = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512]
+  l2_lambdas = [1, 2, 4, 8, 16, 32, 64]
   test_soft_mmlm = True
 
-  load_block_stats = False
+  load_block_stats = True
+
+  mmlm_test_log_csv = open("./Tests/MMLM_Sim/MMLM_stats_class" + video_class + ".csv", mode = 'w', newline = '')
+  mmlm_test_log_csv_writer = csv.writer(mmlm_test_log_csv)
 
   for i in range(len(VideoDataset.video_sequences[video_class])):
     sequence = VideoDataset.video_sequences[video_class][i]
@@ -106,7 +110,7 @@ def simulate_mmlm_looped():
         continue
 
       if not load_block_stats:
-        all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(1), target_string = "Chroma_IntraMode=68")
+        all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(10), target_string = "IsMmCCCMFull=1")
         with open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".json", "w") as file:
           json.dump(all_blocks, file)   
       else: 
@@ -184,6 +188,16 @@ def simulate_mmlm_looped():
         print("Overall SAD change soft MMLM: ", overall_sad_change_soft)
         print("Overall SAD gain soft MMLM: ", overall_sad_gain_soft)
 
+      mmlm_test_log_csv_writer.writerow([sequence, qp])
+      mmlm_test_log_csv_writer.writerow(["Method", "SAD change", "SAD change percentage", "SAD gain", "SAD gain percentage"])
+      if test_lbccp:
+        mmlm_test_log_csv_writer.writerow(["LBCCP: ", str(overall_sad_change_lbccp), str(overall_sad_change_lbccp/total_sad_mmlm), str(overall_sad_gain_lbccp), str(overall_sad_gain_lbccp/total_sad_mmlm)])
+      if test_l2_regularisation:
+        for i in range(len(l2_lambdas)):
+          mmlm_test_log_csv_writer.writerow([f"L2 lambda ={l2_lambdas[i]}", str(overall_sad_change_l2[i]), str(overall_sad_change_l2[i]/total_sad_mmlm), str(overall_sad_gain_l2[i]), str(overall_sad_gain_l2[i]/total_sad_mmlm)])
+      if test_soft_mmlm:
+        mmlm_test_log_csv_writer.writerow(["Soft MMLM: ", str(overall_sad_change_soft), str(overall_sad_change_soft/total_sad_mmlm), str(overall_sad_gain_soft), str(overall_sad_gain_soft/total_sad_mmlm)])
+      
 
 def simulate_cccm_looped():
   video_class = "D"
@@ -203,7 +217,7 @@ def simulate_cccm_looped():
       if not bms_files:
         continue
 
-      all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(10), target_string = "Chroma_IntraMode=67")
+      all_blocks = BmsStatsScanner.collect_blocks(bms_files[0], frame_range = range(10), target_string = "IsCCCMFull=1")
       with open("./Tests/CCCM_Sim/" + sequence + "-" + qp + ".json", "w") as file:
         json.dump(all_blocks, file)    
 
