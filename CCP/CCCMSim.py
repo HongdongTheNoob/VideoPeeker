@@ -80,11 +80,30 @@ def get_cccm_blocks_and_templates(video, frame_number, dimensions, template_line
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
-def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0):
+def simulate_cccm(input_video, frame_number, dimensions, template_lines_in_chroma, reconstructed_video = None, glcccm = 0, l2_regularisation = 0):
   x, y, w, h = dimensions
 
-  blocks_and_templates = get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma)
+  blocks_and_templates = get_cccm_blocks_and_templates(input_video, frame_number, dimensions, template_lines_in_chroma)
   luma_block, luma_template, cb_block, cb_template, cr_block, cr_template, template_left_width, template_top_height, block_mask, template_mask = blocks_and_templates
+
+  if reconstructed_video is not None:
+    reconstructed_templates = get_cccm_blocks_and_templates(reconstructed_video, frame_number, dimensions, template_lines_in_chroma)
+    luma_block, luma_template, _, cb_template, _, cr_template, template_left_width, template_top_height, block_mask, template_mask = reconstructed_templates
+    if input_video.bit_depth == 8:
+      cb_block = cb_block.astype(reconstructed_video.data_type) * 4
+      cr_block = cr_block.astype(reconstructed_video.data_type) * 4
+  else:
+    reconstructed_video = input_video
+    # use 10-bit as operation bit-depth
+    if input_video.bit_depth == 8:
+      reconstructed_video.bit_depth = 10
+      reconstructed_video.data_type = np.uint16
+      luma_block = luma_block.astype("uint16") * 4
+      luma_template = luma_template.astype("uint16") * 4
+      cb_block = cb_block.astype("uint16") * 4
+      cb_template = cb_template.astype("uint16") * 4
+      cr_block = cr_block.astype("uint16") * 4
+      cr_template = cr_template.astype("uint16") * 4
 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
@@ -97,7 +116,7 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   W = luma_template[template_all_y, template_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_template[template_all_y, template_all_x+1].reshape(-1, 1).astype("float64")
   CC = np.square(C)
-  B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
+  B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   if not glcccm:
     samples = np.hstack((C, N, S, W, E, CC, B))
   else:
@@ -120,8 +139,8 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
     coeffs_cb, _, _, _ = np.linalg.lstsq(samples, samples_cb, rcond = None)
     coeffs_cr, _, _, _ = np.linalg.lstsq(samples, samples_cr, rcond = None)
   else:
-    coeffs_cb = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_cb
-    coeffs_cr = np.linalg.inv(samples.T @ samples + l2_regularisation * np.eye(samples.shape[1])) @ samples.T @ samples_cr
+    coeffs_cb = np.linalg.inv(samples.T @ samples + l2_regularisation * samples.shape[1] * np.eye(samples.shape[1])) @ samples.T @ samples_cb
+    coeffs_cr = np.linalg.inv(samples.T @ samples + l2_regularisation * samples.shape[1] * np.eye(samples.shape[1])) @ samples.T @ samples_cr
 
   # prediction
   luma_block_with_template = luma_template.copy()
@@ -133,7 +152,7 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   W = luma_block_with_template[block_all_y, block_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_block_with_template[block_all_y, block_all_x+1].reshape(-1, 1).astype("float64")
   CC = np.square(C)
-  B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
+  B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   if not glcccm:
     samples = np.hstack((C, N, S, W, E, CC, B))
   else:
@@ -148,8 +167,8 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
     Y = np.reshape(Y, luma_template.shape)[block_all_y, block_all_x].reshape(-1, 1).astype("float64")
     samples = np.hstack((C, GY, GX, Y, X, CC, B))
 
-  predicted_cb = np.dot(samples, coeffs_cb).astype(video.data_type)
-  predicted_cr = np.dot(samples, coeffs_cr).astype(video.data_type)
+  predicted_cb = np.dot(samples, coeffs_cb).astype(reconstructed_video.data_type)
+  predicted_cr = np.dot(samples, coeffs_cr).astype(reconstructed_video.data_type)
   cb_template[block_mask] = predicted_cb.flatten()
   cr_template[block_mask] = predicted_cr.flatten()
 
@@ -159,16 +178,44 @@ def simulate_cccm(video, frame_number, dimensions, template_lines_in_chroma, glc
   sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
   sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
+  if input_video.bit_depth == 8:
+    sad_cb = np.sum(np.abs(((predicted_cb_block + 2) // 4).astype("int32") - ((cb_block + 2) // 4)))
+    sad_cr = np.sum(np.abs(((predicted_cr_block + 2) // 4).astype("int32") - ((cr_block + 2) // 4)))
+    predicted_cb_block = ((predicted_cb_block + 2) // 4).astype("uint8")
+    predicted_cr_block = ((predicted_cr_block + 2) // 4).astype("uint8")
+  else:
+    sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
+    sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
+
   return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, (coeffs_cb, coeffs_cr)
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients, MADs
 # evaluate_on_template: also calculates MAD on template. Basically trying to compare training and validation/test residues.
-def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, glcccm = 0, l2_regularisation = 0, evaluate_on_template = False):
+def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_chroma, reconstructed_video = None, glcccm = 0, l2_regularisation = 0, evaluate_on_template = False):
   x, y, w, h = dimensions
 
-  blocks_and_templates = get_cccm_blocks_and_templates(video, frame_number, dimensions, template_lines_in_chroma)
+  blocks_and_templates = get_cccm_blocks_and_templates(input_video, frame_number, dimensions, template_lines_in_chroma)
   luma_block, luma_template, cb_block, cb_template, cr_block, cr_template, template_left_width, template_top_height, block_mask, template_mask = blocks_and_templates
+
+  if reconstructed_video is not None:
+    reconstructed_templates = get_cccm_blocks_and_templates(reconstructed_video, frame_number, dimensions, template_lines_in_chroma)
+    luma_block, luma_template, _, cb_template, _, cr_template, template_left_width, template_top_height, block_mask, template_mask = reconstructed_templates
+    if input_video.bit_depth == 8:
+      cb_block = cb_block.astype(reconstructed_video.data_type) * 4
+      cr_block = cr_block.astype(reconstructed_video.data_type) * 4
+  else:
+    reconstructed_video = input_video
+    # use 10-bit as operation bit-depth
+    if input_video.bit_depth == 8:
+      reconstructed_video.bit_depth = 10
+      reconstructed_video.data_type = np.uint16
+      luma_block = luma_block.astype(reconstructed_video.data_type) * 4
+      luma_template = luma_template.astype(reconstructed_video.data_type) * 4
+      cb_block = cb_block.astype(reconstructed_video.data_type) * 4
+      cb_template = cb_template.astype(reconstructed_video.data_type) * 4
+      cr_block = cr_block.astype(reconstructed_video.data_type) * 4
+      cr_template = cr_template.astype(reconstructed_video.data_type) * 4
 
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
@@ -181,8 +228,8 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   W = luma_template[template_all_y, template_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_template[template_all_y, template_all_x+1].reshape(-1, 1).astype("float64")
   CC = np.square(C)
-  B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
-  template_luma_average = np.mean(C).astype(video.data_type)
+  B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
+  template_luma_average = np.mean(C).astype(reconstructed_video.data_type)
   index_model0 = np.column_stack(np.where(C < template_luma_average))[:, 0]
   index_model1 = np.column_stack(np.where(C >= template_luma_average))[:, 0]
 
@@ -228,10 +275,10 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   mad_cb_template = 0.0
   mad_cr_template = 0.0
   if evaluate_on_template:
-    predicted_cb0_template = np.dot(samples0, coeffs_cb0).astype(video.data_type)
-    predicted_cr0_template = np.dot(samples0, coeffs_cr0).astype(video.data_type)
-    predicted_cb1_template = np.dot(samples1, coeffs_cb1).astype(video.data_type)
-    predicted_cr1_template = np.dot(samples1, coeffs_cr1).astype(video.data_type)
+    predicted_cb0_template = np.dot(samples0, coeffs_cb0).astype(reconstructed_video.data_type)
+    predicted_cr0_template = np.dot(samples0, coeffs_cr0).astype(reconstructed_video.data_type)
+    predicted_cb1_template = np.dot(samples1, coeffs_cb1).astype(reconstructed_video.data_type)
+    predicted_cr1_template = np.dot(samples1, coeffs_cr1).astype(reconstructed_video.data_type)
     sad_cb_template = np.sum(np.abs(predicted_cb0_template.astype("int32") - samples_cb0)) + np.sum(np.abs(predicted_cb1_template.astype("int32") - samples_cb1)) 
     sad_cr_template = np.sum(np.abs(predicted_cr0_template.astype("int32") - samples_cr0)) + np.sum(np.abs(predicted_cr1_template.astype("int32") - samples_cr1))
     mad_cb_template = sad_cb_template / (samples_cb0.shape[0] + samples_cb1.shape[0])
@@ -247,7 +294,7 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   W = luma_block_with_template[block_all_y, block_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_block_with_template[block_all_y, block_all_x+1].reshape(-1, 1).astype("float64")
   CC = np.square(C)
-  B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
+  B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   index_model0 = np.column_stack(np.where(C < template_luma_average))[:, 0]
   index_model1 = np.column_stack(np.where(C >= template_luma_average))[:, 0]
   if not glcccm:
@@ -270,10 +317,10 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
     samples0 = np.hstack((C0, GY0, GX0, Y0, X0, CC0, B0))
     samples1 = np.hstack((C1, GY1, GX1, Y1, X1, CC1, B1))
 
-  predicted_cb0 = np.dot(samples0, coeffs_cb0).astype(video.data_type)
-  predicted_cr0 = np.dot(samples0, coeffs_cr0).astype(video.data_type)
-  predicted_cb1 = np.dot(samples1, coeffs_cb1).astype(video.data_type)
-  predicted_cr1 = np.dot(samples1, coeffs_cr1).astype(video.data_type)
+  predicted_cb0 = np.dot(samples0, coeffs_cb0).astype(reconstructed_video.data_type)
+  predicted_cr0 = np.dot(samples0, coeffs_cr0).astype(reconstructed_video.data_type)
+  predicted_cb1 = np.dot(samples1, coeffs_cb1).astype(reconstructed_video.data_type)
+  predicted_cr1 = np.dot(samples1, coeffs_cr1).astype(reconstructed_video.data_type)
 
   predicted_cb = np.zeros_like(C, dtype = C.dtype)
   predicted_cr = np.zeros_like(C, dtype = C.dtype)
@@ -287,8 +334,14 @@ def simulate_mm_cccm(video, frame_number, dimensions, template_lines_in_chroma, 
   predicted_cb_block = cb_template[template_top_height:-1, template_left_width:-1]
   predicted_cr_block = cr_template[template_top_height:-1, template_left_width:-1]
 
-  sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
-  sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
+  if input_video.bit_depth == 8:
+    sad_cb = np.sum(np.abs(((predicted_cb_block + 2) // 4).astype("int32") - ((cb_block + 2) // 4)))
+    sad_cr = np.sum(np.abs(((predicted_cr_block + 2) // 4).astype("int32") - ((cr_block + 2) // 4)))
+    predicted_cb_block = ((predicted_cb_block + 2) // 4).astype("uint8")
+    predicted_cr_block = ((predicted_cr_block + 2) // 4).astype("uint8")
+  else:
+    sad_cb = np.sum(np.abs(predicted_cb_block.astype("int32") - cb_block))
+    sad_cr = np.sum(np.abs(predicted_cr_block.astype("int32") - cr_block))
 
   mad_cb = sad_cb / (cb_block.size)
   mad_cr = sad_cr / (cr_block.size)

@@ -73,6 +73,14 @@ def find_stats_files(folder_path, video_sequence, qp):
                 found_files.append(os.path.join(root, file_name))
     return found_files
 
+def find_reconstructed_video_file(folder_path, video_sequence, config, qp):
+    found_files = []
+    for root, dirs, files in os.walk(folder_path):
+        for file_name in files:
+            if (video_sequence in file_name) and (config + "-" + qp in file_name) and ('.yuv' in file_name):
+                found_files.append(os.path.join(root, file_name))
+    return found_files
+
 def find_video_properties(video_class, sequence_name):
   if sequence_name in video_sequences[video_class]:
     index = video_sequences[video_class].index(sequence_name)

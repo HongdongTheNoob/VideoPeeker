@@ -1,5 +1,6 @@
 import numpy as np
 from ClassVideoInfo import VideoInformation
+import cv2
 
 def apply_121_filter_and_select_odd(row):
     filtered_row = np.convolve(row, np.array([1, 2, 1]), mode='same')
@@ -94,3 +95,10 @@ def get_downsampled_block(video, frame_number, dimensions, template_lines_in_lum
   new_block_with_template[(y - start_get_y) // 2:, (x - start_get_x) // 2:] = 0
 
   return block, new_block_with_template
+
+def print_block(file_path, block, bit_depth = 8, pixel_zoom = 1):
+  if bit_depth == 8:
+    cv2.imwrite(file_path, np.kron(block, np.ones((pixel_zoom, pixel_zoom))))
+  if bit_depth == 10:
+    cv2.imwrite(file_path, np.kron(((block + 2) // 4).astype("uint8"), np.ones((pixel_zoom, pixel_zoom))))
+    
