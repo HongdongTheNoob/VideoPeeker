@@ -24,6 +24,8 @@ def simulation_use_case():
   dimensions = (64, 64, 64, 64)
   position_string = '_(' + str(dimensions[0]) + ',' + str(dimensions[1]) + ')_' + str(dimensions[2]) + 'x' + str(dimensions[3])
 
+  qp = "22"
+  
   block, template = GetBlock.get_block(my_video, 0, dimensions, 'y', 12)
   cv2.imwrite(replace_extension(file_path, '_y' + position_string + '.png'), np.kron(block, np.ones((8, 8))))
   cv2.imwrite(replace_extension(file_path, '_y_template' + position_string + '_12.png'), np.kron(template, np.ones((8, 8))))

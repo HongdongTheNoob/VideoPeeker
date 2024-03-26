@@ -102,3 +102,7 @@ def print_block(file_path, block, bit_depth = 8, pixel_zoom = 1):
   if bit_depth == 10:
     cv2.imwrite(file_path, np.kron(((block + 2) // 4).astype("uint8"), np.ones((pixel_zoom, pixel_zoom))))
     
+def print_block_yuv(file_path, blocks, bit_depth = 8, pixel_zoom = 1):
+  concat_blocks = np.row_stack((blocks[0], np.column_stack((blocks[1], blocks[2]))))
+  print_block(file_path, concat_blocks, bit_depth = bit_depth, pixel_zoom = pixel_zoom)
+  

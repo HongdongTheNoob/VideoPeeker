@@ -26,7 +26,15 @@ def get_cccm_blocks_and_templates(video, frame_number, dimensions, template_line
   # extend 1 line to the  right and the bottom because of CCCM sampling
   sample_dimensions = (x, y, w + 2, h + 2)
   template_lines_in_luma = (template_lines_in_chroma + 1) * 2
-  luma_block, luma_template = GetBlock.get_downsampled_block(video, frame_number, sample_dimensions, template_lines_in_luma)
+  # luma_block, luma_template = GetBlock.get_downsampled_block(video, frame_number, sample_dimensions, template_lines_in_luma)
+  luma_block, _ = GetBlock.get_downsampled_block(video, frame_number, sample_dimensions, 0)
+  # template_dimensions = (sample_dimensions[0] - template_lines_in_luma, sample_dimensions[1] - template_lines_in_luma, sample_dimensions[2] + template_lines_in_luma, sample_dimensions[3] + template_lines_in_luma)
+  template_dimensions = list(sample_dimensions)
+  template_dimensions[0] = max(0, sample_dimensions[0] - template_lines_in_luma)
+  template_dimensions[1] = max(0, sample_dimensions[1] - template_lines_in_luma)
+  template_dimensions[2] = sample_dimensions[2] + min(sample_dimensions[0], template_lines_in_luma)
+  template_dimensions[3] = sample_dimensions[3] + min(sample_dimensions[1], template_lines_in_luma)
+  luma_template, _ = GetBlock.get_downsampled_block(video, frame_number, template_dimensions, 0)
   cb_block, cb_template = GetBlock.get_block(video, frame_number, sample_dimensions, 'cb', template_lines_in_luma)
   cr_block, cr_template = GetBlock.get_block(video, frame_number, sample_dimensions, 'cr', template_lines_in_luma)
   # check if the block hits the right or the bottom of the image
@@ -115,7 +123,7 @@ def simulate_cccm(input_video, frame_number, dimensions, template_lines_in_chrom
   S = luma_template[template_all_y+1, template_all_x].reshape(-1, 1).astype("float64")
   W = luma_template[template_all_y, template_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_template[template_all_y, template_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   if not glcccm:
     samples = np.hstack((C, N, S, W, E, CC, B))
@@ -151,7 +159,7 @@ def simulate_cccm(input_video, frame_number, dimensions, template_lines_in_chrom
   S = luma_block_with_template[block_all_y+1, block_all_x].reshape(-1, 1).astype("float64")
   W = luma_block_with_template[block_all_y, block_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_block_with_template[block_all_y, block_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   if not glcccm:
     samples = np.hstack((C, N, S, W, E, CC, B))
@@ -217,6 +225,11 @@ def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_ch
       cr_block = cr_block.astype(reconstructed_video.data_type) * 4
       cr_template = cr_template.astype(reconstructed_video.data_type) * 4
 
+  # GetBlock.print_block("./Dump/luma_block.png", luma_block, 10, 8)
+  # GetBlock.print_block("./Dump/luma_template.png", luma_template, 10, 8)
+  # GetBlock.print_block("./Dump/block_mask.png", block_mask * 255, 8, 8)
+  # GetBlock.print_block("./Dump/template_mask.png", template_mask * 255, 8, 8)
+
   # sampling
   template_all_y, template_all_x = np.where(template_mask)
   if len(template_all_y) == 0:
@@ -227,7 +240,7 @@ def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_ch
   S = luma_template[template_all_y+1, template_all_x].reshape(-1, 1).astype("float64")
   W = luma_template[template_all_y, template_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_template[template_all_y, template_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   template_luma_average = np.mean(C).astype(reconstructed_video.data_type)
   index_model0 = np.column_stack(np.where(C < template_luma_average))[:, 0]
@@ -274,26 +287,55 @@ def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_ch
 
   mad_cb_template = 0.0
   mad_cr_template = 0.0
+  cod = 0.0
   if evaluate_on_template:
-    predicted_cb0_template = np.dot(samples0, coeffs_cb0).astype(reconstructed_video.data_type)
-    predicted_cr0_template = np.dot(samples0, coeffs_cr0).astype(reconstructed_video.data_type)
-    predicted_cb1_template = np.dot(samples1, coeffs_cb1).astype(reconstructed_video.data_type)
-    predicted_cr1_template = np.dot(samples1, coeffs_cr1).astype(reconstructed_video.data_type)
-    sad_cb_template = np.sum(np.abs(predicted_cb0_template.astype("int32") - samples_cb0)) + np.sum(np.abs(predicted_cb1_template.astype("int32") - samples_cb1)) 
-    sad_cr_template = np.sum(np.abs(predicted_cr0_template.astype("int32") - samples_cr0)) + np.sum(np.abs(predicted_cr1_template.astype("int32") - samples_cr1))
-    mad_cb_template = sad_cb_template / (samples_cb0.shape[0] + samples_cb1.shape[0])
-    mad_cr_template = sad_cr_template / (samples_cr0.shape[0] + samples_cr1.shape[0])
+    predicted_cb0_template = np.minimum(np.maximum(0, np.dot(samples0, coeffs_cb0)), 1023).astype(reconstructed_video.data_type)
+    predicted_cr0_template = np.minimum(np.maximum(0, np.dot(samples0, coeffs_cr0)), 1023).astype(reconstructed_video.data_type)
+    predicted_cb1_template = np.minimum(np.maximum(0, np.dot(samples1, coeffs_cb1)), 1023).astype(reconstructed_video.data_type)
+    predicted_cr1_template = np.minimum(np.maximum(0, np.dot(samples1, coeffs_cr1)), 1023).astype(reconstructed_video.data_type)
+    if input_video.bit_depth == 8:
+      predicted_cb0_template = (predicted_cb0_template + 2) // 4
+      predicted_cb1_template = (predicted_cb1_template + 2) // 4
+      predicted_cr0_template = (predicted_cr0_template + 2) // 4
+      predicted_cr1_template = (predicted_cr1_template + 2) // 4
+      samples_cb0_compare = (samples_cb0 + 2) // 4
+      samples_cb1_compare = (samples_cb1 + 2) // 4
+      samples_cr0_compare = (samples_cr0 + 2) // 4
+      samples_cr1_compare = (samples_cr1 + 2) // 4
+    else:
+      samples_cb0_compare = samples_cb0
+      samples_cb1_compare = samples_cb1
+      samples_cr0_compare = samples_cr0
+      samples_cr1_compare = samples_cr1
+    sad_cb_template = np.sum(np.abs(predicted_cb0_template.astype("int32") - samples_cb0_compare)) + np.sum(np.abs(predicted_cb1_template.astype("int32") - samples_cb1_compare)) 
+    sad_cr_template = np.sum(np.abs(predicted_cr0_template.astype("int32") - samples_cr0_compare)) + np.sum(np.abs(predicted_cr1_template.astype("int32") - samples_cr1_compare))
+    mad_cb_template = sad_cb_template / (samples_cb0_compare.shape[0] + samples_cb1.shape[0])
+    mad_cr_template = sad_cr_template / (samples_cr0_compare.shape[0] + samples_cr1_compare.shape[0])
+    mean_cb0 = np.average(samples_cb0_compare)
+    mean_cb1 = np.average(samples_cb1_compare)
+    mean_cr0 = np.average(samples_cr0_compare)
+    mean_cr1 = np.average(samples_cr1_compare)
+    cb0_TSS = np.sum((samples_cb0_compare.astype("int32") - mean_cb0) ** 2)
+    cb1_TSS = np.sum((samples_cb1_compare.astype("int32") - mean_cb1) ** 2)
+    cr0_TSS = np.sum((samples_cr0_compare.astype("int32") - mean_cr0) ** 2)
+    cr1_TSS = np.sum((samples_cr1_compare.astype("int32") - mean_cr1) ** 2)
+    cb0_RSS = np.sum((predicted_cb0_template.astype("int32") - samples_cb0_compare) ** 2)
+    cb1_RSS = np.sum((predicted_cb1_template.astype("int32") - samples_cb1_compare) ** 2)
+    cr0_RSS = np.sum((predicted_cr0_template.astype("int32") - samples_cr0_compare) ** 2)
+    cr1_RSS = np.sum((predicted_cr1_template.astype("int32") - samples_cr1_compare) ** 2)
+    # cod = (1 - cb0_RSS / cb0_TSS, 1 - cb1_RSS / cb1_TSS, 1 - cr0_RSS / cr0_TSS, 1 - cr1_RSS / cr1_TSS)
+    cod = 1 - (cb0_RSS + cb1_RSS + cr0_RSS + cr1_RSS) / (cb0_TSS + cb1_TSS + cr0_TSS + cr1_TSS)
 
   # prediction
   luma_block_with_template = luma_template.copy()
-  luma_block_with_template[template_top_height:-1, template_left_width:-1] = luma_block
+  # luma_block_with_template[template_top_height:-1, template_left_width:-1] = luma_block
   block_all_y, block_all_x = np.where(block_mask)
   C = luma_block_with_template[block_all_y, block_all_x].reshape(-1, 1).astype("float64")
   N = luma_block_with_template[block_all_y-1, block_all_x].reshape(-1, 1).astype("float64")
   S = luma_block_with_template[block_all_y+1, block_all_x].reshape(-1, 1).astype("float64")
   W = luma_block_with_template[block_all_y, block_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_block_with_template[block_all_y, block_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (reconstructed_video.bit_depth - 1))
   index_model0 = np.column_stack(np.where(C < template_luma_average))[:, 0]
   index_model1 = np.column_stack(np.where(C >= template_luma_average))[:, 0]
@@ -317,10 +359,10 @@ def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_ch
     samples0 = np.hstack((C0, GY0, GX0, Y0, X0, CC0, B0))
     samples1 = np.hstack((C1, GY1, GX1, Y1, X1, CC1, B1))
 
-  predicted_cb0 = np.dot(samples0, coeffs_cb0).astype(reconstructed_video.data_type)
-  predicted_cr0 = np.dot(samples0, coeffs_cr0).astype(reconstructed_video.data_type)
-  predicted_cb1 = np.dot(samples1, coeffs_cb1).astype(reconstructed_video.data_type)
-  predicted_cr1 = np.dot(samples1, coeffs_cr1).astype(reconstructed_video.data_type)
+  predicted_cb0 = np.minimum(np.maximum(0, np.dot(samples0, coeffs_cb0)), 1023).astype(reconstructed_video.data_type)
+  predicted_cr0 = np.minimum(np.maximum(0, np.dot(samples0, coeffs_cr0)), 1023).astype(reconstructed_video.data_type)
+  predicted_cb1 = np.minimum(np.maximum(0, np.dot(samples1, coeffs_cb1)), 1023).astype(reconstructed_video.data_type)
+  predicted_cr1 = np.minimum(np.maximum(0, np.dot(samples1, coeffs_cr1)), 1023).astype(reconstructed_video.data_type)
 
   predicted_cb = np.zeros_like(C, dtype = C.dtype)
   predicted_cr = np.zeros_like(C, dtype = C.dtype)
@@ -346,7 +388,7 @@ def simulate_mm_cccm(input_video, frame_number, dimensions, template_lines_in_ch
   mad_cb = sad_cb / (cb_block.size)
   mad_cr = sad_cr / (cr_block.size)
 
-  return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, (coeffs_cb0, coeffs_cb1, coeffs_cr0, coeffs_cr1), (mad_cb, mad_cr, mad_cb_template, mad_cr_template)
+  return predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, (coeffs_cb0, coeffs_cb1, coeffs_cr0, coeffs_cr1), (mad_cb, mad_cr, mad_cb_template, mad_cr_template, cod)
 
 # Input: video struct, frame number, dimensions as (x, y, w, h), number of lines in template (usually 6)
 # Output: predicted blocks, SADs, coefficients
@@ -366,7 +408,7 @@ def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_l
   S = luma_template[template_all_y+1, template_all_x].reshape(-1, 1).astype("float64")
   W = luma_template[template_all_y, template_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_template[template_all_y, template_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
 
   template_luma_average = np.mean(C).astype(video.data_type)
@@ -403,7 +445,7 @@ def simulate_soft_classified_mm_cccm(video, frame_number, dimensions, template_l
   S = luma_block_with_template[block_all_y+1, block_all_x].reshape(-1, 1).astype("float64")
   W = luma_block_with_template[block_all_y, block_all_x-1].reshape(-1, 1).astype("float64")
   E = luma_block_with_template[block_all_y, block_all_x+1].reshape(-1, 1).astype("float64")
-  CC = np.square(C)
+  CC = np.square(C) / (2 ** reconstructed_video.bit_depth)
   B = np.ones_like(C, dtype = C.dtype) * (2 ** (video.bit_depth - 1))
 
   if soft_classification_when_apply:

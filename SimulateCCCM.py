@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import numpy as np
 import json
@@ -6,6 +7,8 @@ import csv
 import CCP.CCCMSim as CCCMSim
 import VideoDataset
 import BmsStatsScanner
+import ResultVisualisation
+from PIL import Image, ImageDraw, ImageFont
 
 import GetBlock
 import Filters
@@ -17,13 +20,13 @@ def replace_extension(file_path, new_extension):
     return new_file_path
 
 def simulation_use_case():
-  video_path = "/Data/xcy_test/ClassC/BasketballDrill_832x480_50.yuv"
-  test_video = VideoInformation(video_path, 832, 480, 8)
-  dimensions = (64, 64, 64, 64)
+  video_path = "/Data/xcy_test/ClassE/FourPeople_1280x720_60.yuv"
+  test_video = VideoInformation(video_path, 1280, 720, 8)
+  dimensions = (64, 96, 64, 32)
   position_string = '_(' + str(dimensions[0]) + ',' + str(dimensions[1]) + ')_' + str(dimensions[2]) + 'x' + str(dimensions[3])
 
-  rec_video_path = "/Data/Bitstream/ECM12/ClassC/BasketballDrill/str-BasketballDrill-AI-22_1280x720_10bits.yuv"
-  rec_video = VideoInformation(rec_video_path, 832, 480, 10)
+  rec_video_path = "/Data/Bitstream/ECM12/ClassE/FourPeople/str-FourPeople-AI-22_1280x720_10bits.yuv"
+  rec_video = VideoInformation(rec_video_path, 1280, 720, 10)
 
   y_block, y_template = GetBlock.get_block(rec_video, 0, dimensions, 'y', 12)
   GetBlock.print_block(replace_extension(video_path, '_y' + position_string + '.png'), y_block, bit_depth = rec_video.bit_depth, pixel_zoom = 8)
@@ -55,48 +58,63 @@ def simulation_use_case():
   # print("Cb coeffs: ", x_cb.reshape(1, -1))
   # print("Cr coeffs: ", x_cr.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mad = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, evaluate_on_template = True, reconstructed_video = rec_video)
+  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, template_stats = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, evaluate_on_template = True, reconstructed_video = rec_video)
   x_cb0, x_cb1, x_cr0, x_cr1 = coeffs
-  mad_cb, mad_cr, mad_cb_template, mad_cr_template = mad
+  mad_cb, mad_cr, mad_cb_template, mad_cr_template, cod = template_stats
   GetBlock.print_block(replace_extension(video_path, '_cb_predicted_mmlm' + position_string + '.png'), predicted_cb_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
   GetBlock.print_block(replace_extension(video_path, '_cr_predicted_mmlm' + position_string + '.png'), predicted_cr_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
   print("SADs MM-CCCM: ", sad_cb, sad_cr)
-  print("MADs for block and template: ", mad)
-  # print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  # print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
+  print("MADs and COD: ", template_stats)
+  print("Cb coeffs: ", x_cb0.reshape(1, -1)[0], x_cb1.reshape(1, -1)[0])
+  print("Cr coeffs: ", x_cr0.reshape(1, -1)[0], x_cr1.reshape(1, -1)[0])
 
   # lbccp
-  lbccp_kernel = np.array([[1, 1, 1], [1, 8, 1], [1, 1, 1]]) / 16
-  filtered_cb_block = Filters.apply_filter(test_video, 0, dimensions, 'cb', predicted_cb_block, lbccp_kernel)
-  filtered_cr_block = Filters.apply_filter(test_video, 0, dimensions, 'cr', predicted_cr_block, lbccp_kernel)
-  sad_cb = np.sum(np.abs(filtered_cb_block.astype("int32") - cb_block))
-  sad_cr = np.sum(np.abs(filtered_cr_block.astype("int32") - cr_block))
-  GetBlock.print_block(replace_extension(video_path, '_cb_predicted_mmlm_lbccp' + position_string + '.png'), filtered_cb_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
-  GetBlock.print_block(replace_extension(video_path, '_cr_predicted_mmlm_lbccp' + position_string + '.png'), filtered_cr_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
-  print("SADs MM-CCCM with LBCCP: ", sad_cb, sad_cr)
-  # print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  # print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
+  # lbccp_kernel = np.array([[1, 1, 1], [1, 8, 1], [1, 1, 1]]) / 16
+  # filtered_cb_block = Filters.apply_filter(test_video, 0, dimensions, 'cb', predicted_cb_block, lbccp_kernel)
+  # filtered_cr_block = Filters.apply_filter(test_video, 0, dimensions, 'cr', predicted_cr_block, lbccp_kernel)
+  # sad_cb = np.sum(np.abs(filtered_cb_block.astype("int32") - cb_block))
+  # sad_cr = np.sum(np.abs(filtered_cr_block.astype("int32") - cr_block))
+  # GetBlock.print_block(replace_extension(video_path, '_cb_predicted_mmlm_lbccp' + position_string + '.png'), filtered_cb_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
+  # GetBlock.print_block(replace_extension(video_path, '_cr_predicted_mmlm_lbccp' + position_string + '.png'), filtered_cr_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
+  # print("SADs MM-CCCM with LBCCP: ", sad_cb, sad_cr)
+  # # print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
+  # # print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
-  predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mad = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, l2_regularisation=128.0, evaluate_on_template = True, reconstructed_video = rec_video)
-  x_cb0, x_cb1, x_cr0, x_cr1 = coeffs
-  mad_cb, mad_cr, mad_cb_template, mad_cr_template = mad
-  GetBlock.print_block(replace_extension(video_path, '_cb_predicted_mmlm_l2' + position_string + '.png'), predicted_cb_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
-  GetBlock.print_block(replace_extension(video_path, '_cr_predicted_mmlm_l2' + position_string + '.png'), predicted_cr_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
-  print("SADs MM-CCCM-L2: ", sad_cb, sad_cr)
-  print("MADs for block and template: ", mad)
-  # print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
-  # print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
+  # predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mad = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, l2_regularisation=128.0, evaluate_on_template = True, reconstructed_video = rec_video)
+  # x_cb0, x_cb1, x_cr0, x_cr1 = coeffs
+  # mad_cb, mad_cr, mad_cb_template, mad_cr_template = mad
+  # GetBlock.print_block(replace_extension(video_path, '_cb_predicted_mmlm_l2' + position_string + '.png'), predicted_cb_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
+  # GetBlock.print_block(replace_extension(video_path, '_cr_predicted_mmlm_l2' + position_string + '.png'), predicted_cr_block, bit_depth = test_video.bit_depth, pixel_zoom = 8)
+  # print("SADs MM-CCCM-L2: ", sad_cb, sad_cr)
+  # print("MADs for block and template: ", mad)
+  # # print("Cb coeffs: ", x_cb0.reshape(1, -1), x_cb1.reshape(1, -1))
+  # # print("Cr coeffs: ", x_cr0.reshape(1, -1), x_cr1.reshape(1, -1))
 
 def simulate_mmlm_looped():
-  video_class = "C"
-  qps = ["22", "27", "32", "37"]
+  load_block_stats = True
+  print_blocks = True
+
+  video_class = "E"
+  qps = ["22", "27", "32", "37"] if not print_blocks else ["22"]
 
   test_lbccp = True
   test_l2_regularisation = True
-  l2_lambdas = [1, 2, 4, 8, 16, 32, 64]
+  l2_lambdas = [4, 8, 16, 32, 64, 128, 256] if not print_blocks else [8, 32, 128]
   test_soft_mmlm = False
 
-  load_block_stats = False
+  if print_blocks:
+    if not os.path.exists("./Tests/MMLM_Sim/Visualisation"):
+      os.mkdir("./Tests/MMLM_Sim/Visualisation")
+    if not os.path.exists("./Tests/MMLM_Sim/Visualisation/Class" + video_class):
+      os.mkdir("./Tests/MMLM_Sim/Visualisation/Class" + video_class)
+    # if not os.path.exists("./Tests/MMLM_Sim/Visualisation/Class" + video_class + "/mm-cccm"):
+    #   os.mkdir("./Tests/MMLM_Sim/Visualisation" + video_class + "/mm-cccm")
+    # if test_lbccp:
+    #   if not os.path.exists("./Tests/MMLM_Sim/Visualisation/Class" + video_class + "/lbccp"):
+    #     os.mkdir("./Tests/MMLM_Sim/Visualisation" + video_class + "/lbccp")
+    # if test_l2_regularisation:
+    #   if not os.path.exists("./Tests/MMLM_Sim/Visualisation/Class" + video_class + "/l2"):
+    #     os.mkdir("./Tests/MMLM_Sim/Visualisation" + video_class + "/l2")
 
   mmlm_test_log_csv = open("./Tests/MMLM_Sim/MMLM_stats_class" + video_class + ".csv", mode = 'w', newline = '')
   mmlm_test_log_csv_writer = csv.writer(mmlm_test_log_csv)
@@ -139,6 +157,7 @@ def simulate_mmlm_looped():
       overall_sad_gain_l2 = [0 for _ in l2_lambdas]
       overall_sad_change_soft = 0
       overall_sad_gain_soft = 0
+      sad_mmlm_l2 = [0 for _ in l2_lambdas]
 
       mmlm_test_log_file = open("./Tests/MMLM_Sim/" + sequence + "-" + qp + ".txt", "w")
       for block in all_blocks:
@@ -146,17 +165,34 @@ def simulate_mmlm_looped():
         if dimensions[0] == 0 and dimensions[1] == 0:
           continue
 
-        position_string = '_frame_' + str(frame) + '_(' + str(dimensions[0]) + ',' + str(dimensions[1]) + ')_' + str(dimensions[2]) + 'x' + str(dimensions[3])
-        mmlm_test_log_file.write("frame " + str(frame) + " " + str(dimensions) + "\n")
+        if print_blocks:
+          if dimensions[2] * dimensions[3] < 128:
+            continue
 
+        position_string = '_frame_' + str(frame) + '_(' + str(dimensions[0]) + ',' + str(dimensions[1]) + ')_' + str(dimensions[2]) + 'x' + str(dimensions[3])
+        # mmlm_test_log_file.write("frame " + str(frame) + " " + str(dimensions) + "\n")
+
+        if print_blocks:
+          rec_y_block, _ = GetBlock.get_block(rec_video, frame, dimensions, 'y', 0)
+          if test_video.bit_depth == 8:
+            rec_y_block = (rec_y_block + 2) // 4
+          print_block_prefix = os.path.join("./Tests/MMLM_Sim/Visualisation/Class" + video_class, sequence + "_" + qp + position_string + "_")
+        
         cb_block, _ = GetBlock.get_block(test_video, frame, dimensions, 'cb', 0)
         cr_block, _ = GetBlock.get_block(test_video, frame, dimensions, 'cr', 0)
 
-        predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mad = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, reconstructed_video = rec_video)
+        if print_blocks:
+          GetBlock.print_block_yuv(print_block_prefix + "input.png", (rec_y_block, cb_block, cr_block), test_video.bit_depth, 8)
+
+        predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, template_stats = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, reconstructed_video = rec_video, evaluate_on_template = True)
         sad_mmlm = sad_cb + sad_cr
-        mmlm_test_log_file.write(" ".join(["SADs MM-CCCM: ", str(sad_cb), str(sad_cr), "\n"]))
-        pixel_count += dimensions[2] * dimensions[3] // 4
+        # mmlm_test_log_file.write(" ".join(["Template COD", str(template_stats[4])]))
+        # mmlm_test_log_file.write(" ".join(["SADs MM-CCCM: ", str(sad_cb), str(sad_cr), "\n"]))
         total_sad_mmlm += sad_mmlm
+        if print_blocks:
+          GetBlock.print_block_yuv(print_block_prefix + "mm-cccm.png", (rec_y_block, predicted_cb_block, predicted_cr_block), test_video.bit_depth, 8)
+          best_mode = "mm-cccm"
+          best_mode_sad = sad_cb + sad_cr
 
         # lbccp
         if test_lbccp:
@@ -166,26 +202,62 @@ def simulate_mmlm_looped():
           sad_cb = np.sum(np.abs(filtered_cb_block.astype("int32") - cb_block))
           sad_cr = np.sum(np.abs(filtered_cr_block.astype("int32") - cr_block))
           sad_mmlm_lbccp = sad_cb + sad_cr
-          mmlm_test_log_file.write(" ".join(["SADs MM-CCCM with LBCCP: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_lbccp - sad_mmlm), "\n"]))
+          # mmlm_test_log_file.write(" ".join(["SADs MM-CCCM with LBCCP: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_lbccp - sad_mmlm), "\n"]))
           overall_sad_change_lbccp += sad_mmlm_lbccp - sad_mmlm
           overall_sad_gain_lbccp += max(0, sad_mmlm - sad_mmlm_lbccp)
+          if print_blocks:
+            GetBlock.print_block_yuv(print_block_prefix + "mm-cccm-lbccp.png", (rec_y_block, filtered_cb_block, filtered_cr_block), test_video.bit_depth, 8)
+            if sad_cb + sad_cr < best_mode_sad:
+              best_mode = "lbccp"
+              best_mode_sad = sad_cb + sad_cr
 
         if test_l2_regularisation:
           for i in range(len(l2_lambdas)):
-            predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, mad = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, l2_regularisation = l2_lambdas[i], reconstructed_video = rec_video)
-            sad_mmlm_l2 = sad_cb + sad_cr
-            mmlm_test_log_file.write(" ".join(["SADs MM-CCCM-L2-100: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_l2 - sad_mmlm), "\n"]))
-            overall_sad_change_l2[i] += sad_mmlm_l2 - sad_mmlm
-            overall_sad_gain_l2[i] += max(0, sad_mmlm - sad_mmlm_l2)
+            predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, _ = CCCMSim.simulate_mm_cccm(test_video, 0, dimensions, 6, l2_regularisation = l2_lambdas[i], reconstructed_video = rec_video)
+            sad_mmlm_l2[i] = sad_cb + sad_cr
+            # mmlm_test_log_file.write(" ".join(["SADs MM-CCCM-L2-100: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_l2[i] - sad_mmlm), "\n"]))
+            overall_sad_change_l2[i] += sad_mmlm_l2[i] - sad_mmlm
+            overall_sad_gain_l2[i] += max(0, sad_mmlm - sad_mmlm_l2[i])
+            if print_blocks:
+              GetBlock.print_block_yuv(print_block_prefix + f"mm-cccm-l2-{l2_lambdas[i]}.png", (rec_y_block, predicted_cb_block, predicted_cr_block), test_video.bit_depth, 8)
+              if sad_cb + sad_cr < best_mode_sad:
+                best_mode = f"l2-{l2_lambdas[i]}"
+                best_mode_sad = sad_cb + sad_cr
 
         if test_soft_mmlm:
-          predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs = CCCMSim.simulate_soft_classified_mm_cccm(test_video, 0, dimensions, 6)
-          sad_new_mmlm = sad_cb + sad_cr
-          mmlm_test_log_file.write(" ".join(["SADs Soft MM-CCCM: ", str(sad_cb), str(sad_cr), " change ", str(sad_new_mmlm - sad_mmlm), "\n"]))
-          overall_sad_change_soft += sad_new_mmlm - sad_mmlm
-          overall_sad_gain_soft += max(0, sad_mmlm - sad_new_mmlm)
-
+          predicted_cb_block, predicted_cr_block, sad_cb, sad_cr, coeffs, _ = CCCMSim.simulate_soft_classified_mm_cccm(test_video, 0, dimensions, 6)
+          sad_mmlm_soft = sad_cb + sad_cr
+          # mmlm_test_log_file.write(" ".join(["SADs Soft MM-CCCM: ", str(sad_cb), str(sad_cr), " change ", str(sad_mmlm_soft - sad_mmlm), "\n"]))
+          overall_sad_change_soft += sad_mmlm_soft - sad_mmlm
+          overall_sad_gain_soft += max(0, sad_mmlm - sad_mmlm_soft)
+          if print_blocks:
+            GetBlock.print_block_yuv(print_block_prefix + "mm-cccm-soft.png", (rec_y_block, predicted_cb_block, predicted_cr_block), test_video.bit_depth, 8)
+            if sad_cb + sad_cr < best_mode_sad:
+              best_mode = "soft"
+              best_mode_sad = sad_cb + sad_cr
       
+        if print_blocks:
+          best_mode_image = ResultVisualisation.text_to_image(best_mode)
+          best_mode_image.save(print_block_prefix + "best.png")
+          
+        pixel_count += dimensions[2] * dimensions[3] // 4
+        
+        # write log per block
+        info_list = []
+        block_pixel_count = dimensions[2] * dimensions[3] // 4
+        info_list.append(str(block_pixel_count))
+        info_list.append(str(template_stats[4]))
+        if test_lbccp:
+          info_list.append(str((sad_mmlm_lbccp - sad_mmlm) / block_pixel_count))
+        if test_l2_regularisation:
+          for i in range(len(l2_lambdas)):
+            info_list.append(str((sad_mmlm_l2[i] - sad_mmlm) / block_pixel_count))
+        if test_soft_mmlm:
+          info_list.append(str((sad_mmlm_soft - sad_mmlm) / block_pixel_count))
+
+        info_list.append("\n")
+        mmlm_test_log_file.write(",".join(info_list))
+
       print(sequence, qp)
       print("Pixel count: ", pixel_count)
       print("MMLM total SAD: ", total_sad_mmlm)
