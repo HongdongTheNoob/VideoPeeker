@@ -52,7 +52,7 @@ def simulate_eip_looped():
   load_block_stats = True
   print_blocks = False
 
-  video_class = "E"
+  video_class = "C"
   qps = ["22", "27", "32", "37"] if not print_blocks else ["22"]
 
   test_l2_regularisation = True
