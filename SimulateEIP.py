@@ -104,6 +104,13 @@ def simulate_eip_looped():
       overall_sad_gain_alternative = 0
       sad_eip_l2 = [0 for _ in l2_lambdas]
 
+      # Stats
+      cod = []
+      skewness = []
+      kurtosis = []
+      outlier_ratio = []
+      mad_change_l2 = [[] for _ in l2_lambdas]
+
       eip_test_log_file = open("./Tests/EIP_Sim/" + sequence + "-" + qp + ".txt", "w")
       for block in all_blocks:
         frame, dimensions = block
@@ -166,19 +173,31 @@ def simulate_eip_looped():
         info_list = []
         block_pixel_count = dimensions[2] * dimensions[3]
         info_list.append(str(block_pixel_count))
-        info_list.append(str(template_stats[2]))
-        info_list.append(str(template_stats[3]))
-        info_list.append(str(template_stats[4]))
-        info_list.append(str(template_stats[5]))
+
+        info_list.append(str(template_stats[2])) # cod
+        cod.append(template_stats[2])
+
+        info_list.append(str(template_stats[3])) # skewness
+        skewness.append(template_stats[3])
+
+        info_list.append(str(template_stats[4])) # kurtosis
+        kurtosis.append(template_stats[4])
+
+        info_list.append(str(template_stats[5])) # outlier ratio
+        outlier_ratio.append(template_stats[5])
+
         if test_l2_regularisation:
           for i in range(len(l2_lambdas)):
             info_list.append(str((sad_eip_l2[i] - sad_eip) / block_pixel_count))
+            mad_change_l2[i].append((sad_eip_l2[i] - sad_eip) / block_pixel_count)
         if test_alternative_eip:
           info_list.append(str((sad_eip_alternative - sad_eip) / block_pixel_count))
 
         info_list.append("\n")
         eip_test_log_file.write(",".join(info_list))
       
+
+      # summary
       print(sequence, qp)
       print("Pixel count: ", pixel_count)
       print("EIP total SAD: ", total_sad_eip)
@@ -190,6 +209,22 @@ def simulate_eip_looped():
       if test_alternative_eip:
         print("Overall SAD change alternative EIP: ", overall_sad_change_alternative)
         print("Overall SAD gain alternative EIP: ", overall_sad_gain_alternative)
+
+      # correlation/regression
+      # cod
+      if test_l2_regularisation:
+        for i in range(len(l2_lambdas)):
+          coeffs = np.polyfit(cod, mad_change_l2[i], 1)
+          print(f"L2-{l2_lambdas[i]}:", "cod", coeffs)
+        for i in range(len(l2_lambdas)):
+          coeffs = np.polyfit([abs(i) for i in skewness], mad_change_l2[i], 1)
+          print(f"L2-{l2_lambdas[i]}:", "magnitude of skewness", coeffs)
+        for i in range(len(l2_lambdas)):
+          coeffs = np.polyfit(kurtosis, mad_change_l2[i], 1)
+          print(f"L2-{l2_lambdas[i]}:", "kurtosis", coeffs)
+        for i in range(len(l2_lambdas)):
+          coeffs = np.polyfit(outlier_ratio, mad_change_l2[i], 1)
+          print(f"L2-{l2_lambdas[i]}:", "outlier ratio", coeffs)
 
       eip_test_log_csv_writer.writerow([sequence, qp])
       eip_test_log_csv_writer.writerow(["Method", "SAD change", "SAD change percentage", "SAD gain", "SAD gain percentage"])

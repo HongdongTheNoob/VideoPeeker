@@ -93,7 +93,7 @@ def simulate_eip(input_video, frame_number, dimensions, template_lines, l2_regul
     mean_quadratic_error = np.average(error_mean_removed ** 4)
     skewness = mean_cubic_error / (mean_square_error ** 1.5) if mean_square_error > 0 else 0.0
     kurtosis = mean_quadratic_error / (mean_square_error ** 2) if mean_square_error > 0 else 0.0
-    outlier_count = np.sum(error_mean_removed > 2.0 * mean_error)
+    outlier_count = np.sum(np.abs(error_mean_removed) > 2.0 * np.sqrt(mean_square_error))
     outlier_ratio = outlier_count / error_mean_removed.size
 
   # prediction
