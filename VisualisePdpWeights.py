@@ -14,10 +14,12 @@ blockHeight = 8
 referenceLines = 2
 
 blockWithReferenceSamples = np.full((blockHeight * 2 + referenceLines, blockWidth * 2 + referenceLines), 128)
-invocation_type = 'left_bar1'
+invocation_type = 'corner_topleft1x1far'
 
 if invocation_type == 'corner_topleft':
   blockWithReferenceSamples[0:2,0:2] = 192
+if invocation_type == 'corner_topleft1x1far':
+  blockWithReferenceSamples[0,0] = 192
 if invocation_type == 'top_bar':
   blockWithReferenceSamples[0:2,:] = 192
 if invocation_type == 'top_bar0':
