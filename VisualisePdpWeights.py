@@ -14,7 +14,7 @@ blockHeight = 8
 referenceLines = 2
 
 blockWithReferenceSamples = np.full((blockHeight * 2 + referenceLines, blockWidth * 2 + referenceLines), 128)
-invocation_type = 'corner_topleft1x1far'
+invocation_type = 'left_zebra2'
 
 if invocation_type == 'corner_topleft':
   blockWithReferenceSamples[0:2,0:2] = 192
@@ -32,6 +32,11 @@ if invocation_type == 'left_bar0':
   blockWithReferenceSamples[:,1] = 192
 if invocation_type == 'left_bar1':
   blockWithReferenceSamples[:,0] = 192
+if invocation_type == 'left_zebra':
+  blockWithReferenceSamples[::2,0:2] = 192
+if invocation_type == 'left_zebra2':
+  blockWithReferenceSamples[::4,0:2] = 192
+  blockWithReferenceSamples[1::4,0:2] = 192
 
 # Long reference samples
 stride = blockWidth * 2 + referenceLines
