@@ -4,6 +4,7 @@ Tests/
 Test*
 Dump/
 GPM/Masks/
+MIP/PdpVisualisation/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
