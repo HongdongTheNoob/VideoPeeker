@@ -17,16 +17,16 @@ DIVISOR = np.power(2, 14)
 blockSizes = [
   # (4, 4), 
   # (4, 8), 
-  (8, 4), 
-  (4, 16), 
-  (16, 4), 
+  # (8, 4), 
+  # (4, 16), 
+  # (16, 4), 
   # (8, 8), 
-  (8, 16), 
-  (16, 8), 
+  # (8, 16), 
+  # (16, 8), 
   # (16, 16), 
-  (16, 32), 
+  # (16, 32), 
   (32, 16), 
-  # (32, 32)
+  (32, 32),
 ]
 
 longWeights = {
@@ -149,7 +149,7 @@ for blockSize in blockSizes:
 
       # Fill back
       if blockWidth == 32:
-        if outputBlock.shape[0] == 16:
+        if outputBlock.shape[0] < blockHeight:
           paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))
         else:
           paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight, RL-1:RL], outputBlock))
@@ -164,7 +164,7 @@ for blockSize in blockSizes:
       # Display
       plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
       rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight,
-                      linewidth=2, edgecolor='black', facecolor='none')
+                      linewidth=RL, edgecolor='black', facecolor='none')
       plt.gca().add_patch(rect)
       # plt.show()
 
@@ -197,7 +197,7 @@ for blockSize in blockSizes:
 
       # Fill back
       if blockWidth == 32:
-        if outputBlock.shape[0] == 16:
+        if outputBlock.shape[0] < blockHeight:
           paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))
         else:
           paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight, RL-1:RL], outputBlock))
@@ -212,7 +212,7 @@ for blockSize in blockSizes:
       # Display
       plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
       rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight,
-                      linewidth=2, edgecolor='black', facecolor='none')
+                      linewidth=RL, edgecolor='black', facecolor='none')
       plt.gca().add_patch(rect)
       # plt.show()
 
