@@ -16,7 +16,7 @@ DIVISOR = np.power(2, 14)
 # get weights
 blockSizes = [
   # (4, 4), 
-  (4, 8), 
+  # (4, 8), 
   (8, 4), 
   (4, 16), 
   (16, 4), 
@@ -172,6 +172,8 @@ for blockSize in blockSizes:
       fileName = f'{saveFolder}/{invocation_type}_{modeNumber:02d}.png'
       plt.savefig(fileName, dpi=300, bbox_inches='tight')
 
+      plt.close()
+
     # Short reference samples
     stride = blockWidth + RL
     referenceLength = (blockWidth + RL) * RL + blockHeight * RL
@@ -217,3 +219,5 @@ for blockSize in blockSizes:
       modeNumber = modeId * 2 + 20 if RL == 2 else modeId * 4 + 22
       fileName = f'{saveFolder}/{invocation_type}_{modeNumber:02d}.png'
       plt.savefig(fileName, dpi=300, bbox_inches='tight')
+
+      plt.close()
