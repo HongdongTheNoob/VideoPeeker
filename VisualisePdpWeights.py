@@ -8,100 +8,212 @@ import MIP.PdpData
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
+from scipy.ndimage import zoom
 
-blockWidth = 8
-blockHeight = 8
-referenceLines = 2
+ROUNDER = np.power(2, 13)
+DIVISOR = np.power(2, 14)
 
-blockWithReferenceSamples = np.full((blockHeight * 2 + referenceLines, blockWidth * 2 + referenceLines), 128)
-invocation_type = 'left_zebra2'
+# get weights
+blockSizes = [
+  # (4, 4), 
+  (4, 8), 
+  (8, 4), 
+  (4, 16), 
+  (16, 4), 
+  # (8, 8), 
+  (8, 16), 
+  (16, 8), 
+  # (16, 16), 
+  (16, 32), 
+  (32, 16), 
+  # (32, 32)
+]
 
-if invocation_type == 'corner_topleft':
-  blockWithReferenceSamples[0:2,0:2] = 192
-if invocation_type == 'corner_topleft1x1far':
-  blockWithReferenceSamples[0,0] = 192
-if invocation_type == 'top_bar':
-  blockWithReferenceSamples[0:2,:] = 192
-if invocation_type == 'top_bar0':
-  blockWithReferenceSamples[1,:] = 192
-if invocation_type == 'top_bar1':
-  blockWithReferenceSamples[0,:] = 192
-if invocation_type == 'left_bar':
-  blockWithReferenceSamples[:,0:2] = 192
-if invocation_type == 'left_bar0':
-  blockWithReferenceSamples[:,1] = 192
-if invocation_type == 'left_bar1':
-  blockWithReferenceSamples[:,0] = 192
-if invocation_type == 'left_zebra':
-  blockWithReferenceSamples[::2,0:2] = 192
-if invocation_type == 'left_zebra2':
-  blockWithReferenceSamples[::4,0:2] = 192
-  blockWithReferenceSamples[1::4,0:2] = 192
+longWeights = {
+  (4, 4): MIP.PdpData.g_weights4x4,
+  (4, 8): MIP.PdpData.g_weights4x8,
+  (8, 4): MIP.PdpData.g_weights8x4,
+  (4, 16): MIP.PdpData.g_weights4x16,
+  (16, 4): MIP.PdpData.g_weights16x4,
+  (8, 8): MIP.PdpData.g_weights8x8,
+  (8, 16): MIP.PdpData.g_weights8x16,
+  (16, 8): MIP.PdpData.g_weights16x8,
+  (16, 16): MIP.PdpData.g_weights16x16,
+  (16, 32): MIP.PdpData.g_weights16x32,
+  (32, 16): MIP.PdpData.g_weights32x16,
+  (32, 32): MIP.PdpData.g_weights32x32,
+}
 
-# Long reference samples
-stride = blockWidth * 2 + referenceLines
-referenceLength = (blockWidth * 2 + referenceLines) * referenceLines + blockHeight * 2 * referenceLines
-referenceSamples = np.zeros(referenceLength)
+shortWeights = {
+  (4, 4): MIP.PdpData.g_weightsShort4x4,
+  (4, 8): MIP.PdpData.g_weightsShort4x8,
+  (8, 4): MIP.PdpData.g_weightsShort8x4,
+  (4, 16): MIP.PdpData.g_weightsShort4x16,
+  (16, 4): MIP.PdpData.g_weightsShort16x4,
+  (8, 8): MIP.PdpData.g_weightsShort8x8,
+  (8, 16): MIP.PdpData.g_weightsShort8x16,
+  (16, 8): MIP.PdpData.g_weightsShort16x8,
+  (16, 16): MIP.PdpData.g_weightsShort16x16,
+  (16, 32): MIP.PdpData.g_weightsShort16x32,
+  (32, 16): MIP.PdpData.g_weightsShort32x16,
+  (32, 32): MIP.PdpData.g_weightsShort32x32,
+}
 
-# Fill reference samples
-for i in range(referenceLines):
-  referenceSamples[(i*stride):((i+1)*stride)] = blockWithReferenceSamples[i,:]
-for i in range(blockHeight*2):
-  referenceSamples[referenceLines*stride+i*referenceLines:referenceLines*stride+(i+1)*referenceLines] = blockWithReferenceSamples[i+referenceLines,0:referenceLines]
+invocation_types = [
+  'left_bar', 
+  'left_bar0', 
+  'left_bar1', 
+  'left_zebra', 
+  'left_zebra2', 
+  'zebra', 
+  'corner_topleft', 
+  'corner_bottomleft'
+]
 
-referenceSamples = np.reshape(referenceSamples, (referenceLength, 1))
-for modeId in range(11):
+for blockSize in blockSizes:
+  # blockWidth = 32
+  # blockHeight = 32
+  blockWidth, blockHeight = blockSize
+  RL = 2 if blockWidth * blockHeight <= 256 else 1
 
-  weightMatrix = np.array(MIP.PdpData.g_weights8x8[modeId])
+  saveFolder = f'./MIP/PdpVisualisation/{blockWidth}x{blockHeight}'
+  if not os.path.exists(saveFolder):
+    os.mkdir(saveFolder)
 
-  # Compute matrix
-  outputBlock = np.matmul(weightMatrix, referenceSamples) // np.power(2, 14)
-  outputBlock = np.reshape(outputBlock, (blockHeight, blockWidth))
+  for invocation_type in invocation_types:
+    print(f'Simulating: {blockWidth}x{blockHeight}', invocation_type)
+    blockWithReferenceSamples = np.full((blockHeight * 2 + RL, blockWidth * 2 + RL), 128)
 
-  # Fill back
-  blockWithReferenceSamples[referenceLines:referenceLines+blockHeight,referenceLines:referenceLines+blockWidth] = outputBlock
+    match invocation_type:
+      case 'corner_topleft':
+        blockWithReferenceSamples[0:RL,0:RL] = 192
+      case 'corner_topleft1x1far':
+        blockWithReferenceSamples[0,0] = 192
+      case 'corner_bottomleft':
+        blockWithReferenceSamples[blockHeight:blockHeight+RL,0:RL] = 192
+      case 'zebra':
+        blockWithReferenceSamples[0:RL,0:RL] = 192
+        blockWithReferenceSamples[0:RL,1::2] = 192
+        blockWithReferenceSamples[1::2,0:RL] = 192
+      case 'zebra2':
+        blockWithReferenceSamples[0:RL,::4] = 192
+        blockWithReferenceSamples[0:RL,1::4] = 192
+        blockWithReferenceSamples[::4,0:RL] = 192
+        blockWithReferenceSamples[1::4,0:RL] = 192
+      case 'top_bar':
+        blockWithReferenceSamples[0:RL,:] = 192
+      case 'top_bar0':
+        if RL == 1:
+          continue
+        blockWithReferenceSamples[1,:] = 192
+      case 'top_bar1':
+        if RL == 1:
+          continue
+        blockWithReferenceSamples[0,:] = 192
+      case 'left_bar':
+        blockWithReferenceSamples[:,0:RL] = 192
+      case 'left_bar0':
+        if RL == 1:
+          continue
+        blockWithReferenceSamples[:,1] = 192
+      case 'left_bar1':
+        if RL == 1:
+          continue
+        blockWithReferenceSamples[:,0] = 192
+      case 'left_zebra':
+        blockWithReferenceSamples[::2,0:RL] = 192
+      case 'left_zebra2':
+        blockWithReferenceSamples[::4,0:RL] = 192
+        blockWithReferenceSamples[1::4,0:RL] = 192
 
-  # Display
-  plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
-  rect = Rectangle((referenceLines-0.5, referenceLines-0.5), blockWidth, blockHeight,
-                  linewidth=2, edgecolor='black', facecolor='none')
-  plt.gca().add_patch(rect)
-  # plt.show()
+    # Long reference samples
+    stride = blockWidth * 2 + RL
+    referenceLength = (blockWidth * 2 + RL) * RL + blockHeight * 2 * RL
+    referenceSamples = np.zeros(referenceLength)
 
-  modeNumber = (modeId * 2 - 2) if modeId > 1 else modeId
-  fileName = f'./MIP/PdpVisualisation/{invocation_type}_{modeNumber:02d}.png'
-  plt.savefig(fileName, dpi=300, bbox_inches='tight')
+    # Fill reference samples
+    for i in range(RL):
+      referenceSamples[(i*stride):((i+1)*stride)] = blockWithReferenceSamples[i,:]
+    for i in range(blockHeight*2):
+      referenceSamples[RL*stride+i*RL:RL*stride+(i+1)*RL] = blockWithReferenceSamples[i+RL,0:RL]
 
-# Short reference samples
-stride = blockWidth + referenceLines
-referenceLength = (blockWidth + referenceLines) * referenceLines + blockHeight * referenceLines
-referenceSamples = np.zeros(referenceLength)
+    referenceSamples = np.reshape(referenceSamples, (referenceLength, 1))
+    for modeId in range(11 if RL == 2 else 7):
 
-# Fill reference samples
-for i in range(referenceLines):
-  referenceSamples[(i*stride):((i+1)*stride)] = blockWithReferenceSamples[i,0:stride]
-for i in range(blockHeight):
-  referenceSamples[referenceLines*stride+i*referenceLines:referenceLines*stride+(i+1)*referenceLines] = blockWithReferenceSamples[i+referenceLines,0:referenceLines]
+      weightMatrix = np.array(longWeights[(blockWidth, blockHeight)][modeId])
 
-referenceSamples = np.reshape(referenceSamples, (referenceLength, 1))
-for modeId in range(8):
+      # Compute matrix
+      # outputBlock = np.right_shift((np.matmul(weightMatrix, referenceSamples).astype(int) + ROUNDER), 14)
+      outputBlock = (np.matmul(weightMatrix, referenceSamples) + ROUNDER) // DIVISOR
+      outputBlock = np.reshape(outputBlock, (min(blockHeight, 16), min(blockWidth, 16)))
 
-  weightMatrix = np.array(MIP.PdpData.g_weightsShort8x8[modeId])
+      # Fill back
+      if blockWidth == 32:
+        if outputBlock.shape[0] == 16:
+          paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))
+        else:
+          paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight, RL-1:RL], outputBlock))
+        outputBlock = zoom(paddedOutputBlock, (1, 33/paddedOutputBlock.shape[1]), order=1)
+        outputBlock = outputBlock[:, 1:]
+      if blockHeight == 32:
+        paddedOutputBlock = np.vstack((blockWithReferenceSamples[RL-1:RL, RL:RL+blockWidth], outputBlock))
+        outputBlock = zoom(paddedOutputBlock, (33/paddedOutputBlock.shape[0], 1), order=1)
+        outputBlock = outputBlock[1:, :]
+      blockWithReferenceSamples[RL:RL+blockHeight,RL:RL+blockWidth] = outputBlock
 
-  # Compute matrix
-  outputBlock = np.matmul(weightMatrix, referenceSamples) // np.power(2, 14)
-  outputBlock = np.reshape(outputBlock, (blockHeight, blockWidth))
+      # Display
+      plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
+      rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight,
+                      linewidth=2, edgecolor='black', facecolor='none')
+      plt.gca().add_patch(rect)
+      # plt.show()
 
-  # Fill back
-  blockWithReferenceSamples[referenceLines:referenceLines+blockHeight,referenceLines:referenceLines+blockWidth] = outputBlock
+      modeNumber = modeId if modeId <= 1 else (modeId * 2 - 2 if RL == 2 else modeId * 4 - 6)
+      fileName = f'{saveFolder}/{invocation_type}_{modeNumber:02d}.png'
+      plt.savefig(fileName, dpi=300, bbox_inches='tight')
 
-  # Display
-  plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
-  rect = Rectangle((referenceLines-0.5, referenceLines-0.5), blockWidth, blockHeight,
-                  linewidth=2, edgecolor='black', facecolor='none')
-  plt.gca().add_patch(rect)
-  # plt.show()
+    # Short reference samples
+    stride = blockWidth + RL
+    referenceLength = (blockWidth + RL) * RL + blockHeight * RL
+    referenceSamples = np.zeros(referenceLength)
 
-  modeNumber = modeId * 2 + 20
-  fileName = f'./MIP/PdpVisualisation/{invocation_type}_{modeNumber:02d}.png'
-  plt.savefig(fileName, dpi=300, bbox_inches='tight')
+    # Fill reference samples
+    for i in range(RL):
+      referenceSamples[(i*stride):((i+1)*stride)] = blockWithReferenceSamples[i,0:stride]
+    for i in range(blockHeight):
+      referenceSamples[RL*stride+i*RL:RL*stride+(i+1)*RL] = blockWithReferenceSamples[i+RL,0:RL]
+
+    referenceSamples = np.reshape(referenceSamples, (referenceLength, 1))
+    for modeId in range(8 if RL == 2 else 4):
+
+      weightMatrix = np.array(shortWeights[(blockWidth, blockHeight)][modeId])
+
+      # Compute matrix
+      # outputBlock = np.right_shift((np.matmul(weightMatrix, referenceSamples).astype(int) + ROUNDER), 14)
+      outputBlock = (np.matmul(weightMatrix, referenceSamples) + ROUNDER) // DIVISOR
+      outputBlock = np.reshape(outputBlock, (min(blockHeight, 16), min(blockWidth, 16)))
+
+      # Fill back
+      if blockWidth == 32:
+        if outputBlock.shape[0] == 16:
+          paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))
+        else:
+          paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight, RL-1:RL], outputBlock))
+        outputBlock = zoom(paddedOutputBlock, (1, 33/paddedOutputBlock.shape[1]), order=1)
+        outputBlock = outputBlock[:, 1:]
+      if blockHeight == 32:
+        paddedOutputBlock = np.vstack((blockWithReferenceSamples[RL-1:RL, RL:RL+blockWidth], outputBlock))
+        outputBlock = zoom(paddedOutputBlock, (33/paddedOutputBlock.shape[0], 1), order=1)
+        outputBlock = outputBlock[1:, :]
+      blockWithReferenceSamples[RL:RL+blockHeight,RL:RL+blockWidth] = outputBlock
+
+      # Display
+      plt.imshow(blockWithReferenceSamples, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
+      rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight,
+                      linewidth=2, edgecolor='black', facecolor='none')
+      plt.gca().add_patch(rect)
+      # plt.show()
+
+      modeNumber = modeId * 2 + 20 if RL == 2 else modeId * 4 + 22
+      fileName = f'{saveFolder}/{invocation_type}_{modeNumber:02d}.png'
+      plt.savefig(fileName, dpi=300, bbox_inches='tight')
