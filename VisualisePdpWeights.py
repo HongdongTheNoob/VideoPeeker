@@ -4,12 +4,13 @@ import cv2
 import numpy as np
 import json
 import csv
-import MIP.PdpData
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 from scipy.ndimage import zoom
-import MIP.PdpMatrixMirror
+
+import MIP.PdpData
+import FillReferencePatterns
 
 ROUNDER = np.power(2, 13)
 DIVISOR = np.power(2, 14)
@@ -88,58 +89,9 @@ shortWeights = [{
 }
 ]
 
-invocationTypes = [
-  # 'top_bar',
-  'left_bar', 
-  'left_bar0', 
-  'left_bar1', 
-  'left_zebra', 
-  'left_zebra2', 
-  'zebra', 
-  'corner_TL', 
-  'corner_BL'
-]
-
-def FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType):
-  blockWidth, blockHeight = blockSize
-  match invocationType:
-    case 'corner_TL':
-      blockWithReferenceSamples[0:RL,0:RL] = 192
-    case 'corner_TL1x1far':
-      blockWithReferenceSamples[0,0] = 192
-    case 'corner_BL':
-      blockWithReferenceSamples[blockHeight:blockHeight+RL,0:RL] = 192
-    case 'zebra':
-      blockWithReferenceSamples[0:RL,0:RL] = 192
-      blockWithReferenceSamples[0:RL,1::2] = 192
-      blockWithReferenceSamples[1::2,0:RL] = 192
-    case 'zebra2':
-      blockWithReferenceSamples[0:RL,::4] = 192
-      blockWithReferenceSamples[0:RL,1::4] = 192
-      blockWithReferenceSamples[::4,0:RL] = 192
-      blockWithReferenceSamples[1::4,0:RL] = 192
-    case 'top_bar':
-      blockWithReferenceSamples[0:RL,:] = 192
-    case 'top_bar0':
-      blockWithReferenceSamples[1,:] = 192
-    case 'top_bar1':
-      blockWithReferenceSamples[0,:] = 192
-    case 'left_bar':
-      blockWithReferenceSamples[:,0:RL] = 192
-    case 'left_bar0':
-      blockWithReferenceSamples[:,1] = 192
-    case 'left_bar1':
-      blockWithReferenceSamples[:,0] = 192
-    case 'left_zebra':
-      blockWithReferenceSamples[::2,0:RL] = 192
-    case 'left_zebra2':
-      blockWithReferenceSamples[::4,0:RL] = 192
-      blockWithReferenceSamples[1::4,0:RL] = 192
-  
-  return blockWithReferenceSamples
-
 def FillBlock(blockWithReferenceSamples, outputBlock, blockSize):
   blockWidth, blockHeight = blockSize
+  RL = blockWithReferenceSamples.shape[0] - blockHeight
   if blockWidth == 32:
     if outputBlock.shape[0] < blockHeight:
       paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))
@@ -165,14 +117,14 @@ for blockSize in blockSizes:
   if not os.path.exists(saveFolder):
     os.mkdir(saveFolder)
 
-  for invocationType in invocationTypes:
+  for invocationType in FillReferencePatterns.invocationTypes:
     if RL == 1:
       if invocationType in ['top_bar0', 'top_bar1', 'left_bar0', 'left_bar1']:
         continue
 
     print(f'Simulating: {blockWidth}x{blockHeight}', invocationType)
     blockWithReferenceSamples = np.full((blockHeight * 2 + RL, blockWidth * 2 + RL), 128)
-    blockWithReferenceSamples = FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType)
+    blockWithReferenceSamples = FillReferencePatterns.FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType)
 
     # Long reference samples
     stride = blockWidth * 2 + RL
