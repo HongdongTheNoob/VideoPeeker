@@ -37,24 +37,34 @@ def FillMainReferenceLine(blockWidthReferenceLine, blockSize, modeId, filterTaps
       integerPel = pixelPosition // 32
       fractionalPel = pixelPosition % 32
 
-      referenceSamples = [
-        blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
-      ]
-      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.weak_4tap_filter[fractionalPel]))
-
       # referenceSamples = [
-      #   blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
       #   blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
       #   blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
       #   blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
       #   blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
       # ]
-      # interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.test_5tap_filter[fractionalPel]))
+      # interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.weak_4tap_filter[fractionalPel]))
 
-      leftPart[0, idx] = (interpolatedValue + 32) // 64
+      referenceSamples = [
+        blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
+      ]
+      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.test_5tap_filter[fractionalPel]))
+
+      referenceSamples = [
+        blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0],
+        blockWidthReferenceLine[min(max(0, integerPel+3), blockHeight), 0]
+      ]
+      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.luma_intra_filter[fractionalPel]))
+
+      leftPart[0, idx] = (interpolatedValue + 128) // 256
     
   # concat
   mainReferenceLineLine = np.hstack((leftPart, middlePart, extendedRight)).flatten()

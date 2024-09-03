@@ -1,13 +1,13 @@
 invocationTypes = [
   # 'top_bar',
-  # 'top_zebra2',
+  'top_zebra2',
   # 'left_bar', 
   # 'left_bar0', 
   # 'left_bar1', 
   # 'left_zebra', 
   # 'left_zebra2', 
   # 'zebra', 
-  'zebra2', 
+  # 'zebra2', 
   # 'corner_TL', 
   # 'corner_BL'
 ]

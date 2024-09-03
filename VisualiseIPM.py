@@ -31,7 +31,7 @@ for blockSize in blockSizes:
   blockWidth, blockHeight = blockSize
   RL = 1
   
-  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}'
+  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}_6tap'
   if not os.path.exists(saveFolder):
     os.mkdir(saveFolder)
     
