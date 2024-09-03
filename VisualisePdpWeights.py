@@ -25,10 +25,10 @@ blockSizes = [
   # (8, 8), 
   # (8, 16), 
   # (16, 8), 
-  # (16, 16), 
-  (16, 32), 
-  (32, 16), 
-  (32, 32),
+  (16, 16), 
+  # (16, 32), 
+  # (32, 16), 
+  # (32, 32),
 ]
 
 longWeights = [{
@@ -91,7 +91,7 @@ shortWeights = [{
 
 def FillBlock(blockWithReferenceSamples, outputBlock, blockSize):
   blockWidth, blockHeight = blockSize
-  RL = blockWithReferenceSamples.shape[0] - blockHeight
+  RL = blockWithReferenceSamples.shape[0] % blockHeight
   if blockWidth == 32:
     if outputBlock.shape[0] < blockHeight:
       paddedOutputBlock = np.hstack((blockWithReferenceSamples[RL:RL+blockHeight:2, RL-1:RL], outputBlock))

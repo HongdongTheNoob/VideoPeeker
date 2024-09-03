@@ -41,10 +41,19 @@ for blockSize in blockSizes:
         continue
     
     print(f'Simulating: {blockWidth}x{blockHeight}', invocationType)
-    blockWithReferenceSamples = np.full((blockHeight * 2 + RL, blockWidth * 2 + RL), 128)
+    blockWithReferenceSamples = np.full((blockHeight * 8 + RL, blockWidth * 8 + RL), 128)
     blockWithReferenceSamples = FillReferencePatterns.FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType)
 
     for modeId in range(2, 67):
+      print("Angular mode", modeId)
       predictionBlock = IPMSim.PredIntraAngular(blockWithReferenceSamples, blockSize, modeId)
       blockWithReferenceSamples[RL:RL+blockHeight, RL:RL+blockWidth] = predictionBlock
 
+      # Save
+      blockWithReferenceSamplesToSave = blockWithReferenceSamples[0:2*blockHeight+RL, 0:2*blockWidth+RL]
+      plt.imshow(blockWithReferenceSamplesToSave, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
+      rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight, linewidth=RL, edgecolor='black', facecolor='none')
+      plt.gca().add_patch(rect)
+      fileName = f'{saveFolder}/{invocationType}_{modeId:02d}.png'
+      plt.savefig(fileName, dpi=300, bbox_inches='tight')
+      plt.close()
