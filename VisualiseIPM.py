@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Rectangle
 from scipy.ndimage import zoom
+from itertools import chain
 
 import IPM.IPMSim as IPMSim
 import FillReferencePatterns
@@ -27,15 +28,30 @@ blockSizes = [
   # (32, 32),
 ]
 
+invocationTypes = [
+  # 'top_bar',
+  # 'top_zebra2',
+  # 'left_bar', 
+  # 'left_bar0', 
+  # 'left_bar1', 
+  # 'left_zebra', 
+  # 'left_zebra2', 
+  # 'zebra', 
+  # 'zebra2', 
+  # 'corner_TL', 
+  # 'corner_BL',
+  'gradient'
+]
+
 for blockSize in blockSizes:
   blockWidth, blockHeight = blockSize
   RL = 1
   
-  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}_6tap'
+  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}_WAIP'
   if not os.path.exists(saveFolder):
     os.mkdir(saveFolder)
     
-  for invocationType in FillReferencePatterns.invocationTypes:
+  for invocationType in invocationTypes:
     if RL == 1:
       if invocationType in ['top_bar0', 'top_bar1', 'left_bar0', 'left_bar1']:
         continue
@@ -44,7 +60,7 @@ for blockSize in blockSizes:
     blockWithReferenceSamples = np.full((blockHeight * 8 + RL, blockWidth * 8 + RL), 128)
     blockWithReferenceSamples = FillReferencePatterns.FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType)
 
-    for modeId in range(2, 67):
+    for modeId in chain(range(-14, 0), range(2, 81)):
       print("Angular mode", modeId)
       predictionBlock = IPMSim.PredIntraAngular(blockWithReferenceSamples, blockSize, modeId)
       blockWithReferenceSamples[RL:RL+blockHeight, RL:RL+blockWidth] = predictionBlock
@@ -54,6 +70,6 @@ for blockSize in blockSizes:
       plt.imshow(blockWithReferenceSamplesToSave, cmap='gray', interpolation='nearest', vmin=0, vmax=255)
       rect = Rectangle((RL-0.5, RL-0.5), blockWidth, blockHeight, linewidth=RL, edgecolor='black', facecolor='none')
       plt.gca().add_patch(rect)
-      fileName = f'{saveFolder}/{invocationType}_{modeId:02d}.png'
+      fileName = f'{saveFolder}/{invocationType}_{(modeId+14):02d}_mode{(modeId):02d}.png'
       plt.savefig(fileName, dpi=300, bbox_inches='tight')
       plt.close()

@@ -31,6 +31,20 @@ blockSizes = [
   # (32, 32),
 ]
 
+invocationTypes = [
+  # 'top_bar',
+  # 'top_zebra2',
+  # 'left_bar', 
+  # 'left_bar0', 
+  # 'left_bar1', 
+  # 'left_zebra', 
+  # 'left_zebra2', 
+  'zebra', 
+  'zebra2', 
+  # 'corner_TL', 
+  # 'corner_BL'
+]
+
 longWeights = [{
   (4, 4): MIP.PdpData.g_weights4x4,
   (4, 8): MIP.PdpData.g_weights4x8,
@@ -117,7 +131,7 @@ for blockSize in blockSizes:
   if not os.path.exists(saveFolder):
     os.mkdir(saveFolder)
 
-  for invocationType in FillReferencePatterns.invocationTypes:
+  for invocationType in invocationTypes:
     if RL == 1:
       if invocationType in ['top_bar0', 'top_bar1', 'left_bar0', 'left_bar1']:
         continue

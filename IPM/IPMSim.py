@@ -37,53 +37,57 @@ def FillMainReferenceLine(blockWidthReferenceLine, blockSize, modeId, filterTaps
       integerPel = pixelPosition // 32
       fractionalPel = pixelPosition % 32
 
-      # referenceSamples = [
-      #   blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
-      #   blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
-      #   blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
-      #   blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
-      # ]
-      # interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.weak_4tap_filter[fractionalPel]))
-
       referenceSamples = [
-        blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
         blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
         blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
         blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
         blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
       ]
-      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.test_5tap_filter[fractionalPel]))
+      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.weak_4tap_filter[fractionalPel]))
+      leftPart[0, idx] = (interpolatedValue + 32) // 64
 
-      referenceSamples = [
-        blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0],
-        blockWidthReferenceLine[min(max(0, integerPel+3), blockHeight), 0]
-      ]
-      interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.luma_intra_filter[fractionalPel]))
+      # referenceSamples = [
+      #   blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0]
+      # ]
+      # interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.test_5tap_filter[fractionalPel]))
+      # leftPart[0, idx] = (interpolatedValue + 32) // 64
 
-      leftPart[0, idx] = (interpolatedValue + 128) // 256
+      # referenceSamples = [
+      #   blockWidthReferenceLine[min(max(0, integerPel-2), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel-1), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel+1), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel+2), blockHeight), 0],
+      #   blockWidthReferenceLine[min(max(0, integerPel+3), blockHeight), 0]
+      # ]
+      # interpolatedValue = np.dot(np.array(referenceSamples), np.array(IntraFilters.luma_intra_filter[fractionalPel]))
+      # leftPart[0, idx] = (interpolatedValue + 128) // 256
+
     
   # concat
   mainReferenceLineLine = np.hstack((leftPart, middlePart, extendedRight)).flatten()
 
   return mainReferenceLineLine
 
-def PredIntraAngular(blockWidthReferenceLine, blockSize, modeId):
+def PredIntraAngular(blockWidthReferenceLine, blockSize, modeId, forcePDPC = 0):
   blockWidth, blockHeight = blockSize
 
-  if modeId < 2 or modeId > 66:
+  # if modeId < 2 or modeId > 66:
+  if modeId < -14 or modeId > 80: # support WAIP
     print("Wrong mode ID")
     return
 
   transposed = (modeId < 34)
+  waip = (modeId < 2) or (modeId > 66)
   predModeIndex = modeId
   if modeId < 34: # transpose
     blockWidthReferenceLine = blockWidthReferenceLine.transpose()
     blockHeight, blockWidth = blockWidth, blockHeight
-    predModeIndex = 68 - modeId
+    predModeIndex = 68 - modeId if modeId >= 2 else 68 - (modeId + 2)
   
   predModeSign = 1 if predModeIndex > 50 else (-1 if predModeIndex < 50 else 0)
   
@@ -92,6 +96,7 @@ def PredIntraAngular(blockWidthReferenceLine, blockSize, modeId):
 
   referenceLinePosition = (xx * 32) + yy * predModeSign * angTable[abs(predModeIndex - 50)]
   referenceLinePosition = referenceLinePosition + ((blockHeight + 1) * 32)
+  referenceLinePosition = np.clip(referenceLinePosition, -np.inf, (blockWidth * 8 + blockHeight) * 32).astype(int)
   referenceLinePositionInteger = referenceLinePosition // 32
   referenceLinePositionFractional = referenceLinePosition % 32
 
@@ -119,18 +124,45 @@ def PredIntraAngular(blockWidthReferenceLine, blockSize, modeId):
   #                           referenceLinePositionFractional * 0]
     
   predictionFilter = [np.zeros((blockHeight, blockWidth)) for _ in range(6)]
-  if angTable[abs(predModeIndex - 50)] % 32 == 0:
-    predictionBlock = mainReferenceLine[referenceLinePositionInteger]
-  else:
+
+  if predModeIndex > 66:
     for y in range(blockHeight):
       for x in range(blockWidth):
           for f in range(6):
-            predictionFilter[f][y][x] = IntraFilters.luma_intra_filter[referenceLinePositionFractional[y][x]][f]
-      
-    predictionBlock = np.zeros((blockHeight, blockWidth)) + 128
-    for filterTap in range(6):
-      predictionBlock += np.multiply(predictionFilter[filterTap], mainReferenceLine[(referenceLinePositionInteger - 2 + filterTap)])
-    predictionBlock = predictionBlock // 256
+            predictionFilter[f][y][x] = IntraFilters.luma_intra_filter_ext[referenceLinePositionFractional[y][x]][f]
+      predictionBlock = np.zeros((blockHeight, blockWidth)) + 128
+      for filterTap in range(6):
+        predictionBlock += np.multiply(predictionFilter[filterTap], mainReferenceLine[(referenceLinePositionInteger - 2 + filterTap)])
+      predictionBlock = predictionBlock // 256
+  else:
+    if angTable[abs(predModeIndex - 50)] % 32 == 0:
+      predictionBlock = mainReferenceLine[referenceLinePositionInteger]
+    else:
+      for y in range(blockHeight):
+        for x in range(blockWidth):
+            for f in range(6):
+              predictionFilter[f][y][x] = IntraFilters.luma_intra_filter[referenceLinePositionFractional[y][x]][f]
+      predictionBlock = np.zeros((blockHeight, blockWidth)) + 128
+      for filterTap in range(6):
+        predictionBlock += np.multiply(predictionFilter[filterTap], mainReferenceLine[(referenceLinePositionInteger - 2 + filterTap)])
+      predictionBlock = predictionBlock // 256
+
+  if forcePDPC > 0 or (forcePDPC == 0 and predModeSign > 0):
+    if modeId > 66:
+      oppositeMode = modeId - 64
+    elif modeId >= 34:
+      oppositeMode = modeId - 66
+    elif modeId >= 2:
+      oppositeMode = modeId + 64
+    else:
+      oppositeMode = modeId + 66
+    oppositeBlock = PredIntraAngular(blockWidthReferenceLine, blockSize, oppositeMode, forcePDPC = -1)
+
+    # xx, yy = np.meshgrid(range(1,blockWidth+1), range(1,blockHeight+1))
+    invAngle = invAngTable[abs(predModeIndex - 50)]
+    yIntercept = (yy - 1) + (xx * invAngle + 256) // 512
+    scale = min(2, np.log2(blockHeight - np.floor(np.log2(3 * invAngle - 2))) + 8)
+
 
   if transposed: # transpose back
     predictionBlock = predictionBlock.transpose()
