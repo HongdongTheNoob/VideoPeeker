@@ -37,17 +37,17 @@ invocationTypes = [
   # 'left_zebra', 
   # 'left_zebra2', 
   # 'zebra', 
-  # 'zebra2', 
+  'zebra2', 
   # 'corner_TL', 
   # 'corner_BL',
-  'gradient'
+  # 'gradient'
 ]
 
 for blockSize in blockSizes:
   blockWidth, blockHeight = blockSize
   RL = 1
   
-  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}_WAIP'
+  saveFolder = f'./IPM/IpmVisualisation/{blockWidth}x{blockHeight}_PDPC'
   if not os.path.exists(saveFolder):
     os.mkdir(saveFolder)
     
@@ -61,6 +61,7 @@ for blockSize in blockSizes:
     blockWithReferenceSamples = FillReferencePatterns.FillReferenceSamples(blockWithReferenceSamples, blockSize, invocationType)
 
     for modeId in chain(range(-14, 0), range(2, 81)):
+    # for modeId in range(51, 56):
       print("Angular mode", modeId)
       predictionBlock = IPMSim.PredIntraAngular(blockWithReferenceSamples, blockSize, modeId)
       blockWithReferenceSamples[RL:RL+blockHeight, RL:RL+blockWidth] = predictionBlock

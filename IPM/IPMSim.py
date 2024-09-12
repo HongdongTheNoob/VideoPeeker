@@ -148,21 +148,16 @@ def PredIntraAngular(blockWidthReferenceLine, blockSize, modeId, forcePDPC = 0):
       predictionBlock = predictionBlock // 256
 
   if forcePDPC > 0 or (forcePDPC == 0 and predModeSign > 0):
-    if modeId > 66:
-      oppositeMode = modeId - 64
-    elif modeId >= 34:
-      oppositeMode = modeId - 66
-    elif modeId >= 2:
-      oppositeMode = modeId + 64
-    else:
-      oppositeMode = modeId + 66
-    oppositeBlock = PredIntraAngular(blockWidthReferenceLine, blockSize, oppositeMode, forcePDPC = -1)
-
     # xx, yy = np.meshgrid(range(1,blockWidth+1), range(1,blockHeight+1))
     invAngle = invAngTable[abs(predModeIndex - 50)]
     yIntercept = (yy - 1) + (xx * invAngle + 256) // 512
+    yIntercept[yIntercept > blockHeight * 8 - 1] = blockHeight * 8 - 1
     scale = min(2, np.log2(blockHeight - np.floor(np.log2(3 * invAngle - 2))) + 8)
-
+    weightLeftShiftBit = (xx * 2) // np.power(2, scale)
+    weightLeft = 32 // np.power(2, weightLeftShiftBit)
+    oppositeBlock = blockWidthReferenceLine[yIntercept+1, 0]
+    oppositeBlock[xx >= 3 * np.power(2,scale)] = 0
+    predictionBlock = (np.multiply(oppositeBlock, weightLeft) + np.multiply(predictionBlock, 64 - weightLeft) + 32) // 64
 
   if transposed: # transpose back
     predictionBlock = predictionBlock.transpose()
