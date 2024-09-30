@@ -25,10 +25,10 @@ blockSizes = [
   # (8, 8), 
   # (8, 16), 
   # (16, 8), 
-  (16, 16), 
+  # (16, 16), 
   # (16, 32), 
   # (32, 16), 
-  # (32, 32),
+  (32, 32),
 ]
 
 invocationTypes = [
@@ -39,7 +39,7 @@ invocationTypes = [
   # 'left_bar1', 
   # 'left_zebra', 
   # 'left_zebra2', 
-  'zebra', 
+  # 'zebra', 
   'zebra2', 
   # 'corner_TL', 
   # 'corner_BL'
